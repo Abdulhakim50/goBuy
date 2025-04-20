@@ -112,10 +112,10 @@ model Order {
   userId        String
   user          User        @relation(fields: [userId], references: [id])
   items         OrderItem[]
-  totalAmount   Float // Store price in cents (Int) in production!
-  status        String      @default("PENDING") // PENDING, PAID, SHIPPED, DELIVERED, CANCELED
-  shippingAddress String?   @db.Text // Store structured address in production
-  stripePaymentIntentId String? @unique
+  totalAmount   Float       // Use Int for cents!
+  status        OrderStatus @default(PENDING) // Use the enum
+  shippingAddress String?   @db.Text
+  stripePaymentIntentId String? @unique // Make sure this is unique
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -130,4 +130,13 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict) // Don't delete product if in an order
 
   @@unique([orderId, productId])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELED
+  FAILED // Added
 }
