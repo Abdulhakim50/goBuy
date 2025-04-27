@@ -4,6 +4,32 @@ import Credentials from "next-auth/providers/credentials";
 // import Google from "next-auth/providers/google"; // Example: Add other providers
 import prisma from "./prisma";
 import { compare } from 'bcryptjs'; // npm install bcryptjs @types/bcryptjs
+import { UserRole } from "@prisma/client";
+import { DefaultSession } from "next-auth";
+
+
+
+declare module "next-auth" {
+  interface Session extends DefaultSession {
+      user?: {
+          id: string;
+          role: UserRole; // Add role here
+      } & DefaultSession["user"]; // Keep existing properties like name, email, image
+  }
+
+  // Optional: If you want role on the user object passed to JWT callback
+  interface User {
+      role: UserRole;
+  }
+}
+declare module "next-auth" {
+/** Returned by the `jwt` callback and `getToken`, when using JWT sessions */
+interface JWT {
+  id: string;
+  role: UserRole; // Add role to the JWT token itself
+}
+}
+
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -56,15 +82,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // token.role = user.role; // Add role if you have it in your User model
+        token.role = user.role; // Add role if you have it in your User model
       }
       return token;
     },
     // Make user id and role available in the session object (used client-side)
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token.id && token.role) {
         session.user.id = token.id as string;
-        // session.user.role = token.role as string; // Add role if available
+        session.user.role = token.role as UserRole; // <-- Add role to session user
       }
       return session;
     },

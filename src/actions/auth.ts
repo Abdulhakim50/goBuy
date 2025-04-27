@@ -16,8 +16,15 @@ const SignupSchema = z.object({
 });
 
 interface ActionResult {
-    error?: string | null;
+    error?: {} | null;
     success?: boolean;
+    type?  : String
+}
+
+interface ActionResultSignIn {
+    error?:  null;
+    success?: boolean;
+    type  : String
 }
 
 export async function signupAction(prevState: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
@@ -26,8 +33,14 @@ export async function signupAction(prevState: ActionResult | undefined, formData
 
     if (!validatedFields.success) {
         // Aggregate Zod errors into a single message (or handle field-specific errors)
-        const errorMessage = validatedFields.error.errors.map(e => e.message).join(', ');
+        const errorMessage = validatedFields.error.errors.map(e => {return {from : e.path[0],msg:e.message}});
+
+        console.log(errorMessage)
+        
+       
         return { error: errorMessage };
+
+       
     }
 
     const { name, email, password } = validatedFields.data;
@@ -101,7 +114,7 @@ export async function signupAction(prevState: ActionResult | undefined, formData
 }
 
 // Action for simple Credentials sign-in (can be used by Login page)
-export async function credentialsSignInAction(prevState: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+export async function credentialsSignInAction(prevState: ActionResult | undefined, formData: FormData): Promise<ActionResultSignIn> {
      try {
          // signIn throws an error if authentication fails
          await signIn("credentials", formData); // Pass FormData directly
@@ -109,6 +122,7 @@ export async function credentialsSignInAction(prevState: ActionResult | undefine
          // We should not reach here on success unless redirect is explicitly false.
          return { success: true }; // Should generally not be reached on successful login redirect
      } catch (error) {
+
          if (error instanceof AuthError) {
              switch (error.type) {
                  case 'CredentialsSignin':

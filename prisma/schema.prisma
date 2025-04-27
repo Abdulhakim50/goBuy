@@ -41,6 +41,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String? // Only if using Credentials provider
+  role          UserRole  @default(USER)
   accounts      Account[]
   sessions      Session[]
   orders        Order[]
@@ -64,7 +65,7 @@ model Product {
   name        String
   slug        String   @unique
   description String?  @db.Text
-  price       Float    // Store price in cents (Int) in production! Use Float here for simplicity.
+  price       Float // Store price in cents (Int) in production! Use Float here for simplicity.
   images      String[] // Array of image URLs
   stock       Int      @default(0)
   createdAt   DateTime @default(now())
@@ -108,16 +109,16 @@ model CartItem {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
-  items         OrderItem[]
-  totalAmount   Float       // Use Int for cents!
-  status        OrderStatus @default(PENDING) // Use the enum
-  shippingAddress String?   @db.Text
-  stripePaymentIntentId String? @unique // Make sure this is unique
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                    String      @id @default(cuid())
+  userId                String
+  user                  User        @relation(fields: [userId], references: [id])
+  items                 OrderItem[]
+  totalAmount           Float // Use Int for cents!
+  status                OrderStatus @default(PENDING) // Use the enum
+  shippingAddress       String?     @db.Text
+  stripePaymentIntentId String?     @unique // Make sure this is unique
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 }
 
 model OrderItem {
@@ -139,4 +140,9 @@ enum OrderStatus {
   DELIVERED
   CANCELED
   FAILED // Added
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }

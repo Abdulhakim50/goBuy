@@ -11,11 +11,13 @@ import { useActionState } from 'react';
 import { credentialsSignInAction } from '@/actions/auth'; // Import the server action
 import { Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
+import { useSession } from "next-auth/react";
 import { toast } from 'sonner';// Optional: Import client-side signIn if you want buttons for OAuth providers
+import { redirect } from 'next/navigation';
 // import { signIn } from "next-auth/react";
 // import { FaGoogle, FaGithub } from "react-icons/fa"; // Example icons
 
-function LoginSubmitButton({pending}) {
+function LoginSubmitButton({pending}:any) {
     
     return (
         <Button type="submit" className="w-full" disabled={pending}>
@@ -57,7 +59,15 @@ function LoginSubmitButton({pending}) {
 
 
 export default function LoginPage() {
-    const [state, formAction,pending] = useActionState(credentialsSignInAction, undefined);
+    const [state, formAction, pending ] = useActionState(credentialsSignInAction, undefined);
+    const { data: session, status } = useSession();
+
+ 
+  
+    if (session) {
+      redirect('/')
+    }
+
 
     useEffect(() => {
         if (state?.error) {
@@ -101,7 +111,7 @@ export default function LoginPage() {
                             </div>
                             <Input id="password" name="password" type="password" required />
                         </div>
-                        <LoginSubmitButton pending={pending} />
+                        <LoginSubmitButton pending ={pending} />
                     </form>
 
                     {/* Optional: Divider and OAuth Buttons */}

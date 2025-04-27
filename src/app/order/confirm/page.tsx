@@ -22,9 +22,7 @@ async function ConfirmationStatus({ paymentIntentId, clientSecret }: { paymentIn
 
     try {
         // Retrieve the PaymentIntent from Stripe using the ID and secret
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
-            client_secret: clientSecret,
-        });
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
         // Analyze the status
         switch (paymentIntent.status) {

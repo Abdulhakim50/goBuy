@@ -18,9 +18,10 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useActionState } from "react";
+import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 // Separate component for the submit button to use useFormStatus
-function SubmitButton({pending}) {
-
+function SubmitButton({ pending }) {
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -31,18 +32,26 @@ function SubmitButton({pending}) {
 
 export default function SignupPage() {
   // useFormState takes the action and initial state
-  const [state, formAction,pending] = useActionState(signupAction, undefined); // Initial state is undefined
+  const [state, formAction, pending] = useActionState(signupAction, undefined); // Initial state is undefined
 
-  // Show toast message on error
-  useEffect(() => {
-    if (state?.error) {
-      toast("Signup Failed", {
-        description: state.error,
-      });
-    }
-    // You could potentially show a success toast here too, but redirect is usually sufficient
-    // if (state?.success) { ... }
-  }, [state, toast]);
+   const { data: session, status } = useSession();
+  
+   
+    
+      if (!session) {
+        redirect('/')
+      }
+
+  // console.log(state?.error?.map(e=>e.from))
+  // useEffect(() => {
+  //   if (state?.error) {
+  //     toast("Signup Failed", {
+  //       description: state.error?.,
+  //     });
+  //   }
+  //   // You could potentially show a success toast here too, but redirect is usually sufficient
+  //   // if (state?.success) { ... }
+  // }, [state, toast]);
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -65,17 +74,30 @@ export default function SignupPage() {
 
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" placeholder="Your Name" required />
+              <Input
+                id="name"
+                name="name"
+                placeholder="Your Name"
+                defaultValue={"a"}
+                required
+              />
+              <p className=" text-red-600">
+                {state?.error?.map((e) => (e.from === "name" ? e.msg : null))}
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email" // Name attribute is crucial for FormData
-                type="email"
+                type="text"
+                defaultValue={"jgggjkjkhlhioouiuiii"}
                 placeholder="m@example.com"
                 required
               />
+              <p className=" text-red-600">
+                { state?.error?.map((e) => (e.from ? e.from === "email" ? e.msg : null : null))}
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
@@ -83,6 +105,7 @@ export default function SignupPage() {
                 id="password"
                 name="password"
                 type="password"
+                defaultValue={"hghghgiyu787879879"}
                 required
                 minLength={6}
               />
