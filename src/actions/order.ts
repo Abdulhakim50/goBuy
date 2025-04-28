@@ -3,11 +3,18 @@
 import prisma from "@/app/lib/prisma";
 import { auth } from "@/app/lib/auth";
 import { stripe, calculateOrderAmountInCents } from "@/app/lib/stripe";
-import { CartItem, Product, OrderStatus } from "@prisma/client";
+import { CartItem, Product, OrderStatus,UserRole } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 type CartItemWithProduct = CartItem & {
   product: Pick<Product, "id" | "name" | "price" | "stock">;
 };
+
+interface OrderActionResult {
+  error?: string | null;
+  success?: boolean;
+}
+
 
 type CreatePaymentIntentResult =
   | { success: true; clientSecret: string; orderTotal: number }
@@ -141,4 +148,80 @@ export async function createPaymentIntentAction(): Promise<CreatePaymentIntentRe
       error instanceof Error ? error.message : "Could not initiate checkout";
     return { error: errorMessage, status: 500 };
   }
+}
+
+
+
+export async function updateOrderStatusAction(
+  orderId: string,
+  newStatus: OrderStatus
+): Promise<OrderActionResult> {
+
+  // 1. Check Authentication & Authorization (Admin Only)
+  const session = await auth();
+  if (!session?.user || session.user.role !== UserRole.ADMIN) {
+      return { error: "Unauthorized: Admin access required." };
+  }
+
+  // 2. Validate Inputs (Basic)
+  if (!orderId) {
+      return { error: "Invalid Order ID." };
+  }
+  // Ensure the newStatus is a valid OrderStatus enum value
+  if (!Object.values(OrderStatus).includes(newStatus)) {
+       return { error: "Invalid status value provided."};
+  }
+
+
+  try {
+      // 3. Find the existing order to ensure it exists
+      const existingOrder = await prisma.order.findUnique({
+          where: { id: orderId },
+          // Include userId if needed for notifications
+          select: { id: true, status: true, userId: true }
+      });
+
+      if (!existingOrder) {
+          return { error: "Order not found." };
+      }
+
+      // 4. Optional: Prevent changing status back from terminal states (e.g., DELIVERED, CANCELED)
+      // if ([OrderStatus.DELIVERED, OrderStatus.CANCELED, OrderStatus.FAILED].includes(existingOrder.status)) {
+      //      if (existingOrder.status !== newStatus) { // Allow setting *to* the same terminal state? Maybe not needed.
+      //          return { error: `Cannot change status from a terminal state (${existingOrder.status}).` };
+      //      }
+      // }
+
+      // 5. Update the order status
+      await prisma.order.update({
+          where: { id: orderId },
+          data: {
+              status: newStatus,
+              // Optionally update updatedAt timestamp automatically (Prisma does this)
+          },
+      });
+
+      console.log(`Admin ${session.user.email} updated order ${orderId} status to ${newStatus}`);
+
+      // --- Side Effects ---
+      // 6. TODO: Send status update notification email to the customer
+      // Only send for specific transitions (e.g., PAID -> SHIPPED, SHIPPED -> DELIVERED)
+      // if (newStatus === OrderStatus.SHIPPED || newStatus === OrderStatus.DELIVERED) {
+      //    await sendOrderStatusUpdateEmail(existingOrder.userId, orderId, newStatus);
+      // }
+
+
+  } catch (error: any) {
+      console.error(`Error updating status for order ${orderId}:`, error);
+      return { error: "Database error: Could not update order status." };
+  }
+
+  // 7. Revalidate relevant paths
+  revalidatePath('/admin/orders'); // Admin list
+  revalidatePath(`/admin/orders/${orderId}`); // Admin detail
+  // Revalidate customer's order history as well
+  revalidatePath('/account/orders');
+  revalidatePath(`/account/orders/${orderId}`);
+
+  return { success: true }; // Indicate success
 }
