@@ -1,27 +1,24 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Product } from "@prisma/client";
 
-interface Product {
-  id: string;
-  name: string;
-  slug : String;
-  description: string;
-  images: string[];
+interface ProductCardProps {
+  // Adjust prop type based on what data you select/pass
+  product: Pick<Product, "id" | "name" | "slug" | "price" | "imagePath">;
 }
-
-const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
+export default function ProductCard({ product }: ProductCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 transition hover:shadow-lg">
       <div className="relative w-full h-64">
-      <Link href={`/products/${product.slug}`}>
-        <Image
-          src={product.images?.[0] || "/placeholder.png"} // Fallback if image is missing
-          alt={product.name}
-          fill
-          className="object-cover"
-          sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw"
-        />
+        <Link href={`/products/${product.slug}`}>
+          <Image
+            src={product.imagePath ?? "/placeholder-image.png"}
+            alt={product.name}
+            fill
+            className="object-cover"
+            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 100vw"
+          />
         </Link>
       </div>
       <div className="p-4 space-y-2">
@@ -30,6 +27,4 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       </div>
     </div>
   );
-};
-
-export default ProductCard;
+}

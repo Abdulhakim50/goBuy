@@ -9,23 +9,34 @@ type Props = {
   params: { slug: string };
 };
 
-// Function to generate metadata dynamically
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const product = await prisma.product.findUnique({
-    where: { slug: params.slug },
-    select: { name: true, description: true },
-  });
+  const product = await prisma.product.findUnique({ /* ... */ });
 
   if (!product) {
-    return { title: "Product Not Found" };
+      return { title: "Product Not Found" }; // Keep simple for not found
   }
 
+  // Generate specific title and description
+  const title = product.name; // Template in layout adds "| MyShop"
+  const description = product.description
+                      ? product.description.substring(0, 160) // Truncate description
+                      : `Check out ${product.name} at MyShop.`; // Fallback description
+
   return {
-    title: `${product.name} | MyShop`,
-    description: product.description?.substring(0, 160) || "Check out this amazing product.",
+      title: title,
+      description: description,
+       // Specific Open Graph data for this product
+       openGraph: {
+           title: `${product.name} | MyShop`, // Include site name for OG title
+           description: description,
+           images: product.imagePath ? [ { url: product.imagePath } ] : [], // Use product image
+           type: 'product', // More specific OG type
+           // Optional: Add price, availability if supported
+          //  price: { amount: product.price.toString(), currency: 'USD' }
+       },
+      // Add specific Twitter card data if needed
   };
 }
-
 // This component fetches data on the server based on the slug
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = params;

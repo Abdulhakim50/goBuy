@@ -56,7 +56,7 @@ export default function AddProduct() {
                     <CardDescription>Fill in the details for the new product.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form action={formAction} className="grid gap-6">
+                    <form action={formAction} className="grid gap-6" encType="multipart/form-data">
                          {/* Display general non-field error if needed */}
                          {state?.error && !state.fieldErrors && (
                              <p className="text-sm font-medium text-destructive">{state.error}</p>
@@ -91,11 +91,11 @@ export default function AddProduct() {
                         </div>
 
                          {/* Images (Basic URL input) */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="images">Image URLs (comma-separated)</Label>
-                            <Textarea id="images" name="images" placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" />
-                            <p className="text-xs text-muted-foreground">Enter full URLs separated by commas. Proper image upload coming soon!</p>
-                            {state?.fieldErrors?.images && <p className="text-sm font-medium text-destructive">{state.fieldErrors.images}</p>}
+                         <div className="grid gap-2">
+                            <Label htmlFor="image">Product Image</Label>
+                            <Input id="image" name="image" type="file" required accept="image/*" />
+                            <p className="text-xs text-muted-foreground">Max 4MB. PNG, JPG, WEBP recommended.</p>
+                            {state?.fieldErrors?.image && <p className="text-sm font-medium text-destructive">{state.fieldErrors.image}</p>}
                         </div>
 
 

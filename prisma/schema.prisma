@@ -66,7 +66,8 @@ model Product {
   slug        String   @unique
   description String?  @db.Text
   price       Float // Store price in cents (Int) in production! Use Float here for simplicity.
-  images      String[] // Array of image URLs
+  // images      String[] // Array of image URLs
+  imagePath   String? 
   stock       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

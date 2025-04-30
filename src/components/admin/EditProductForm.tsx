@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { toast } from "sonner";
 import { Button } from '../ui/button';
 import { useActionState } from 'react';
-
+import Image from 'next/image';
 
 interface EditProductPageProps {
     product: Product | null; // Product data passed from parent server component
@@ -92,11 +92,17 @@ export default function EditProductForm({ product, productId }: EditProductPageP
 
             {/* Images */}
             <div className="grid gap-2">
-                <Label htmlFor="images">Image URLs (comma-separated)</Label>
-                {/* Join the array back into a comma-separated string for the textarea */}
-                <Textarea id="images" name="images" defaultValue={product.images.join(', ')} />
-                <p className="text-xs text-muted-foreground">Enter full URLs separated by commas.</p>
-                {state?.fieldErrors?.images && <p className="text-sm font-medium text-destructive">{state.fieldErrors.images}</p>}
+                <Label htmlFor="image">Product Image (Optional: Leave blank to keep current)</Label>
+                 {/* Display Current Image */}
+                 {product.imagePath && (
+                     <div className='mb-2'>
+                        <p className='text-sm text-muted-foreground mb-1'>Current Image:</p>
+                        <Image src={product.imagePath} alt="Current product image" width={100} height={100} className="rounded border aspect-square object-cover" />
+                     </div>
+                 )}
+                <Input id="image" name="image" type="file" accept="image/*" />
+                <p className="text-xs text-muted-foreground">Upload a new image to replace the current one. Max 4MB.</p>
+                {state?.fieldErrors?.image && <p className="text-sm font-medium text-destructive">{state.fieldErrors.image}</p>}
             </div>
 
             <div className="flex justify-end">
