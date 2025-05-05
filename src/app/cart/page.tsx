@@ -46,7 +46,7 @@ export default async function CartPage() {
               name: true,
               slug: true,
               price: true,
-              images: true, // Get images for display
+              imagePath: true, // Get images for display
             },
           },
         },

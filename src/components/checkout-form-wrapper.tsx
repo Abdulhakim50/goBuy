@@ -32,9 +32,7 @@ interface ShippingDetails {
 export default function CheckoutFormWrapper() {
   const [isPendingAction, startTransition] = useTransition();
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
-  const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
-    /* ... */
-  }); // Keep your state
+  const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({}); // Keep your state
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderTotal, setOrderTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);

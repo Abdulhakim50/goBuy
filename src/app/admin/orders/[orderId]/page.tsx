@@ -70,7 +70,7 @@ export default async function AdminOrderDetailPage({
               id: true,
               name: true,
               slug: true,
-              image: true,
+              imagePath: true,
             },
           },
         },

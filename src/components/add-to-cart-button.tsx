@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useCartStore } from '@/stores/cart-store'; //
 import { addToCartAction } from "@/actions/cart"; // Import the Server Action
 import { Loader2 } from "lucide-react"; // Icon for loading state
 
@@ -15,7 +16,10 @@ interface AddToCartButtonProps {
 export default function AddToCartButton({ productId }: AddToCartButtonProps) {
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition(); // Hook for loading state with Server Actions
+   
+  const { setCount } = useCartStore();  
 
+  
   const handleAddToCart = () => {
     if (quantity <= 0) {
       toast("Invalid Quantity", {

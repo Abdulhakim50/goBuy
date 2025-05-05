@@ -78,7 +78,7 @@ export default async function ProductsPage({
             orderBy: orderByClause, // Apply dynamic order clause
             skip: skip,
             take: take,
-            select: { id: true, name: true, slug: true, price: true, images: true, stock: true },
+            select: { id: true, name: true, slug: true, price: true, imagePath: true, stock: true },
         }),
         prisma.product.count({ where: whereClause }), // Count based on the same filters
     ]);

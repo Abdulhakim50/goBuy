@@ -10,7 +10,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <aside className="sticky top-0 h-screen w-64 hidden border-r bg-background p-4 md:block">
                 <nav className="flex flex-col gap-2">
                     <h2 className="mb-2 text-lg font-semibold tracking-tight">Admin Panel</h2>
-                    <Link href="/admin/dashboard" className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary">
+                    <Link href="/admin" className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary">
                         <Home className="h-4 w-4" />
                         Dashboard
                     </Link>

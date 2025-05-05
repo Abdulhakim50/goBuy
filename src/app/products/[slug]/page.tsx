@@ -9,40 +9,53 @@ type Props = {
   params: { slug: string };
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const product = await prisma.product.findUnique({ /* ... */ });
+ type openGraph ={
+     title : String,
+     description : String,
+     image : String,
+     type : String
 
-  if (!product) {
-      return { title: "Product Not Found" }; // Keep simple for not found
-  }
+ }
 
-  // Generate specific title and description
-  const title = product.name; // Template in layout adds "| MyShop"
-  const description = product.description
-                      ? product.description.substring(0, 160) // Truncate description
-                      : `Check out ${product.name} at MyShop.`; // Fallback description
+// export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
-  return {
-      title: title,
-      description: description,
-       // Specific Open Graph data for this product
-       openGraph: {
-           title: `${product.name} | MyShop`, // Include site name for OG title
-           description: description,
-           images: product.imagePath ? [ { url: product.imagePath } ] : [], // Use product image
-           type: 'product', // More specific OG type
-           // Optional: Add price, availability if supported
-          //  price: { amount: product.price.toString(), currency: 'USD' }
-       },
-      // Add specific Twitter card data if needed
-  };
-}
+//   const slug = params.slug
+//   const product = await prisma.product.findUnique({
+//     where: { slug: slug },
+//   });
+//   if (!product) {
+//       return { title: "Product Not Found" }; // Keep simple for not found
+//   }
+
+//   // Generate specific title and description
+//   const title = product.name; // Template in layout adds "| MyShop"
+//   const description = product.description
+//                       ? product.description.substring(0, 160) // Truncate description
+//                       : `Check out ${product.name} at MyShop.`; // Fallback description
+
+//   return {
+//       title: title,
+//       description: description,
+//        // Specific Open Graph data for this product
+//        openGraph  : {
+//            title: `${product.name} | MyShop`, // Include site name for OG title
+//            description: description,
+//            images: product.imagePath ? [ { url: product.imagePath } ] : [], // Use product image
+//            type: 'product', // More specific OG type
+//            // Optional: Add price, availability if supported
+//           //  price: { amount: product.price.toString(), currency: 'USD' }
+//        },
+//       // Add specific Twitter card data if needed
+//   };
+// }
 // This component fetches data on the server based on the slug
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = params;
 
   const product = await prisma.product.findUnique({
     where: { slug: slug },
+    
+    
   });
 
   if (!product) {
@@ -56,9 +69,9 @@ export default async function ProductDetailPage({ params }: Props) {
     <div className="grid md:grid-cols-2 gap-8">
       {/* Image Gallery */}
       <div>
-        {product.images && product.images.length > 0 ? (
+        {product.imagePath ? (
           <Image
-            src={product.images[0]} // Basic: Show first image
+            src={product.imagePath} // Basic: Show first image
             alt={product.name}
             width={500}
             height={500}

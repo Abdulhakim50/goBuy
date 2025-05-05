@@ -78,7 +78,7 @@ export async function addToCartAction(productId: string, quantity: number) {
     const existingItem = cart.items.find(
       (item) => item.productId === productId
     );
-
+    let requiresNewItem = false;
     if (existingItem) {
       // Check combined quantity against stock
       const newQuantity = existingItem.quantity + quantity;
@@ -103,12 +103,19 @@ export async function addToCartAction(productId: string, quantity: number) {
         },
       });
     }
+    requiresNewItem = true;
+
+    const updatedCart = await prisma.cart.findUnique({
+      where: { userId },
+      select: { _count: { select: { items: true } } } // Select distinct item count
+ });
+ const newItemCount = updatedCart?._count.items ?? cart.items.length + (requiresNewItem ? 1 : 0);
 
     // Revalidate the cart page and product page (or layout potentially)
     revalidatePath("/cart");
     revalidatePath(`/products/${productId}`); // Or use tags if more complex
 
-    return { success: true, message: "Item added to cart!" };
+    return { success: true, message: "Item added to cart!" , newCartItemCount: newItemCount };
   } catch (error) {
     console.error("Error adding to cart:", error);
     return { error: "Could not add item to cart", status: 500 };
