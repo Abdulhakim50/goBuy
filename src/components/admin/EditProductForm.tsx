@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Button } from '../ui/button';
 import { useActionState } from 'react';
 import Image from 'next/image';
+import { editProfile } from '@/actions/profile';
 
 interface EditProductPageProps {
     product: Product | null; // Product data passed from parent server component

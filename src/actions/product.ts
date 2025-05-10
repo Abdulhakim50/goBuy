@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import fs from 'node:fs/promises'; // Node.js file system module
 import path from 'node:path'; // Node.js path module
+import { Product } from '@prisma/client';
 
 // --- Updated Zod schema for single image upload ---
 // Input validation now expects potentially a File object

@@ -33,6 +33,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true }, // Allow indexing by default
 };
 
+ export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
     { href: '/account/orders', label: 'My Orders', icon: Package },
-    { href: '/account', label: 'Profile Settings', icon: User }, // Future page
+    { href: '/account/profile', label: 'Profile Settings', icon: User }, // Future page
     // Add more items like Addresses, etc.
 ];
 

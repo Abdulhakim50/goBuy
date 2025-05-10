@@ -40,7 +40,7 @@ function getStatusBadgeVariant(status: OrderStatus): "default" | "secondary" | "
 }
 
 // Ensure fresh data, especially for order statuses
-export const dynamic = 'force-dynamic';
+
 
 export default async function AdminOrdersPage() {
     // Fetch all orders - Add pagination for large number of orders
