@@ -5,7 +5,7 @@ import { Product } from "@prisma/client";
 
 interface ProductCardProps {
   // Adjust prop type based on what data you select/pass
-  product: Pick<Product, "id" | "name" | "slug" | "price" | "imagePath">;
+  product: Pick<Product, "id" | "name" | "slug" | "price" | "imagePath" | "description">;
 }
 export default function ProductCard({ product }: ProductCardProps) {
   return (

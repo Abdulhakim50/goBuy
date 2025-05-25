@@ -2,8 +2,9 @@
 
 import { User } from "@prisma/client";
 import prisma from "@/app/lib/prisma";
-import { auth } from "@/app/lib/auth";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { auth } from "@/auth";
 
 interface editProfileResult {
   error?: string | null;
@@ -15,13 +16,20 @@ export async function editProfile(
   prevState: any,
   formData: FormData
 ): Promise<editProfileResult> {
-  const session = await auth();
+  const session = await auth.api.getSession({
+     headers: await headers() // you need to pass the headers object.
+ })
+ 
+
+  if (!session) {
+    return { error: "unautorized" };
+  }
 
   const userId = session?.user?.id;
 
   const rawData = Object.fromEntries(formData.entries());
-  const name = formData.get("name");
-  const email = formData.get("email");
+  const name = rawData.name;
+  const email = rawData.email;
 
   try {
     const existingProduct = await prisma.user.findUnique({
@@ -47,7 +55,10 @@ export async function editProfile(
 }
 
 export async function fetchProfileForEdit(): Promise<User | null> {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
+
 
   const userId = session?.user?.id;
   // NOTE: Authentication/Authorization should ideally happen here too,

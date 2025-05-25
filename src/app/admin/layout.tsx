@@ -2,8 +2,28 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { Package, Home, Users } from 'lucide-react'; // Example icons
+import { headers } from 'next/headers';
+import { auth } from '@/auth';
+import { notFound, redirect } from 'next/navigation';
+import prisma from '../lib/prisma';
+import NotFound from '../not-found';
 // Middleware already protects this layout, no need for auth() check here again
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+
+    const session = await auth.api.getSession({
+       headers: await headers() // you need to pass the headers object.
+   })  
+   
+      const userData = await prisma.user.findUnique({
+       where: { id: session?.user.id },
+       select: { role: true } // Fetch only the role
+     });
+   
+     if (!session?.user || userData?.role !== "ADMIN") {
+          notFound()
+     }
+   
+
     return (
         <div className="flex min-h-screen w-full">
             {/* Sidebar Navigation */}

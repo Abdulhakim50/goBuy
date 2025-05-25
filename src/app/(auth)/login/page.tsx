@@ -11,9 +11,9 @@ import { useActionState } from 'react';
 import { credentialsSignInAction } from '@/actions/auth'; // Import the server action
 import { Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
-import { useSession } from "next-auth/react";
 import { toast } from 'sonner';// Optional: Import client-side signIn if you want buttons for OAuth providers
 import { redirect } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
 // import { signIn } from "next-auth/react";
 // import { FaGoogle, FaGithub } from "react-icons/fa"; // Example icons
 
@@ -60,7 +60,12 @@ function LoginSubmitButton({pending}:any) {
 
 export default function LoginPage() {
     const [state, formAction, pending ] = useActionState(credentialsSignInAction, undefined);
-    const { data: session, status } = useSession();
+    const { 
+        data: session, 
+        isPending, //loading state
+        error, //error object
+        refetch //refetch the session
+    } = authClient.useSession() 
 
  
   
@@ -96,10 +101,11 @@ export default function LoginPage() {
                             <Input
                                 id="email"
                                 name="email"
-                                type="email"
                                 placeholder="m@example.com"
-                                required
+                              
                             />
+                             <div>{state?.error?.map((e) => (e.from === "email" ? e.msg : null))}</div>
+
                         </div>
                         <div className="grid gap-2">
                             <div className="flex items-center">
@@ -109,7 +115,7 @@ export default function LoginPage() {
                                     Forgot your password?
                                 </Link> */}
                             </div>
-                            <Input id="password" name="password" type="password" required />
+                            <Input id="password" name="password" type="password"  />
                         </div>
                         <LoginSubmitButton pending ={pending} />
                     </form>

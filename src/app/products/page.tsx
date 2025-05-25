@@ -1,4 +1,3 @@
-// src/app/(main)/products/page.tsx
 import prisma from "@/app/lib/prisma";
 import ProductCard from "@/components/product-card";
 import { Metadata } from "next";
@@ -84,7 +83,9 @@ export default async function ProductsPage({
     ]);
 
     const totalPages = Math.ceil(totalProducts / take);
+    
     // --- End Fetching Logic ---
+    
 
     return (
     <div>
@@ -99,7 +100,6 @@ export default async function ProductsPage({
         {products.length === 0 && page === 1 ? (
              <div className="text-center py-16 border rounded-lg bg-secondary">
                 <p className="text-muted-foreground mb-4">No products found matching your criteria.</p>
-                {/* TODO: Add a 'Clear Filters' button that links to /products */}
                  <Button variant="outline" asChild><Link href="/products">Clear Filters</Link></Button>
             </div>
         ) : products.length === 0 && page > 1 ? (

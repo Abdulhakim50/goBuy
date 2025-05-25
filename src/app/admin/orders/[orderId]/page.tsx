@@ -152,7 +152,7 @@ export default async function AdminOrderDetailPage({
                     {" "}
                     {/* Open product in new tab */}
                     <Image
-                      src={item.imagePath ?? "/placeholder-image.png"}
+                      src={item.product.imagePath ?? "/placeholder-image.png"}
                       alt={item.product.name}
                       width={64}
                       height={64}

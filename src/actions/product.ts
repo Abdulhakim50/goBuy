@@ -3,13 +3,14 @@
 
 import { z } from 'zod';
 import prisma from '@/app/lib/prisma';
-import { auth } from '@/app/lib/auth';
 import { UserRole } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import fs from 'node:fs/promises'; // Node.js file system module
 import path from 'node:path'; // Node.js path module
 import { Product } from '@prisma/client';
+import { auth } from '@/auth';
+import { headers } from 'next/headers'; // For getting request headers
 
 // --- Updated Zod schema for single image upload ---
 // Input validation now expects potentially a File object
@@ -82,7 +83,10 @@ export async function createProductAction(
     prevState: ProductActionResult | undefined,
     formData: FormData
 ): Promise<ProductActionResult> {
-    const session = await auth();
+     const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
+
     if (!session?.user || session.user.role !== UserRole.ADMIN) { /* ... auth check ... */ }
 
     // Extract file separately BEFORE Zod validation if needed, or let Zod handle it
@@ -151,8 +155,20 @@ export async function updateProductAction(
     prevState: ProductActionResult | undefined,
     formData: FormData
 ): Promise<ProductActionResult> {
-    const session = await auth();
-    if (!session?.user || session.user.role !== UserRole.ADMIN) { /* ... auth check ... */ }
+     const session = await auth.api.getSession({
+        headers: await headers() // you need to pass the headers object.
+    })
+
+     const userData = await prisma.user.findUnique({
+        where: { id: session?.user.id },
+        select: { role: true } // Fetch only the role
+      });
+    
+      if (!session?.user || userData?.role !== "ADMIN") {
+        redirect("/"); 
+      }
+    
+    if (!session?.user || userData.role !== UserRole.ADMIN) { /* ... auth check ... */ }
 
     const rawData = Object.fromEntries(formData.entries());
     const imageFile = rawData.image instanceof File ? rawData.image : undefined; // Get potential new image
@@ -228,8 +244,18 @@ export async function updateProductAction(
 
 // --- DELETE ACTION (Updated to delete image) ---
 export async function deleteProductAction(productId: string): Promise<ProductActionResult> {
-    const session = await auth();
-    if (!session?.user || session.user.role !== UserRole.ADMIN) { /* ... */ }
+     const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
+      const userData = await prisma.user.findUnique({
+         where: { id: session?.user.id },
+         select: { role: true } // Fetch only the role
+       });
+     
+       if (!session?.user || userData?.role !== "ADMIN") {
+         redirect("/"); 
+       }
+    if (!session?.user || userData.role !== UserRole.ADMIN) { /* ... */ }
     if (!productId) { /* ... */ }
 
     let productToDelete: { id: string, slug: string, imagePath: string | null } | null = null;

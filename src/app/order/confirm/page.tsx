@@ -36,6 +36,7 @@ async function ConfirmationStatus({ paymentIntentId, clientSecret }: { paymentIn
                  // This might happen if the initial attempt failed on this page
                  return <StatusDisplay status="error" message="Payment failed. Please try another payment method." showRetry={true} />;
             case 'requires_action':
+                
                  // Should typically not land here if redirect flow worked, but handle just in case
                  return <StatusDisplay status="error" message="Further action required. Please follow the prompts from your bank." />;
             case 'canceled':

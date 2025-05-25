@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 
 interface EditProfilePageProps {
-  profile: User | null; // profile data passed from parent server component
+  profile: User ; // profile data passed from parent server component
   // profileId: string;
 }
 
@@ -57,7 +57,7 @@ const EditProfile = ({ profile }: EditProfilePageProps) => {
       {/* Name */}
       <div className="grid gap-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={profile.name} required />
+        <Input id="name" name="name" defaultValue={profile.name} className=" w-96" required />
         {state?.fieldErrors?.name && (
           <p className="text-sm font-medium text-destructive">
             {state.fieldErrors.name}
@@ -68,7 +68,7 @@ const EditProfile = ({ profile }: EditProfilePageProps) => {
       {/* Description */}
       <div className="grid gap-2">
         <Label htmlFor="description">Email</Label>
-        <Input id="email" name="email" defaultValue={profile.email} required />
+        <Input id="email" name="email" defaultValue={profile.email} className=" w-96" required />
 
         {state?.fieldErrors?.description && (
           <p className="text-sm font-medium text-destructive">
@@ -77,7 +77,7 @@ const EditProfile = ({ profile }: EditProfilePageProps) => {
         )}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-start">
         <SubmitUpdateButton pending={pending} />
       </div>
     </form>

@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 // Only block and redirect if user is clearly not authenticated based on cookie
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+    const sessionCookie = getSessionCookie(request);
 
     const isAdminPath = pathname.startsWith('/admin');
 
     if (isAdminPath) {
-        const token = request.cookies.get('authjs.session-token'); // Example for NextAuth
-        if (!token) {
+        if (!sessionCookie) {
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('callbackUrl', pathname);
             return NextResponse.redirect(loginUrl);

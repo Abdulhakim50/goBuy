@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner';
 import { updateUserRoleAction } from '@/actions/user';
 import { Loader2 } from 'lucide-react';
-import { useSession } from 'next-auth/react'; // Import useSession to get current user
+import { authClient } from '@/lib/auth-client';
 
 interface UserRoleSelectorProps {
     userId: string;
@@ -19,7 +19,11 @@ interface UserRoleSelectorProps {
 const availableRoles: UserRole[] = [UserRole.USER, UserRole.ADMIN];
 
 export default function UserRoleSelector({ userId, currentRole }: UserRoleSelectorProps) {
-    const { data: session } = useSession(); // Get current session
+     const { 
+        data: session, 
+        error, //error object
+        refetch //refetch the session
+    } = authClient.useSession() 
     const [isPending, startTransition] = useTransition();
 
     // No need for local state for selectedValue if triggering action directly onValueChange

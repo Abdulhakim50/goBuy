@@ -12,13 +12,17 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"; // Use Alert Dialog for confirmation
-
+import { authClient } from '@/lib/auth-client';
 interface UserActionsProps {
     userId: string;
 }
 
 export default function UserActions({ userId }: UserActionsProps) {
-    const { data: session } = useSession();
+    const { 
+        data: session, 
+        error, //error object
+        refetch //refetch the session
+    } = authClient.useSession() 
     const [isPending, startTransition] = useTransition();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 

@@ -3,10 +3,11 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import prisma from '@/app/lib/prisma';
-import { auth } from '@/app/lib/auth';
 import { formatPrice } from '@/app/lib/utils'; // Use your price formatter
 import { Badge } from '@/components/ui/badge'; // Shadcn badge for status
 import { Button } from '@/components/ui/button';
+import { headers } from 'next/headers'; // For accessing request headers
+import { auth } from '@/auth';
 import {
     Table,
     TableBody,
@@ -42,10 +43,12 @@ function getStatusBadgeVariant(status: OrderStatus): "default" | "secondary" | "
 }
 
 export default async function OrdersPage() {
-    const session = await auth();
+    const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
 
     // Redundant check (layout already protects), but good practice
-    if (!session?.user?.id) {
+    if (!session) {
         redirect('/login?callbackUrl=/account/orders');
     }
     const userId = session.user.id;

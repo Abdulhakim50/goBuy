@@ -1,7 +1,8 @@
 // src/app/checkout/page.tsx
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/app/lib/auth';
+import { auth } from '@/auth';
+import { headers } from 'next/headers'; // For accessing request headers
 import CheckoutFormWrapper from '@/components/checkout-form-wrapper'; // We'll create this Client Component
 
 export const metadata: Metadata = {
@@ -13,9 +14,11 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function CheckoutPage() {
-    const session = await auth();
+    const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
 
-    if (!session?.user?.id) {
+    if (!session) {
         redirect('/login?callbackUrl=/checkout');
     }
 

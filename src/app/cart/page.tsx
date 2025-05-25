@@ -4,11 +4,12 @@ import Image from "next/image";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import prisma from "@/app/lib/prisma";
-import { auth } from "@/app/lib/auth"; // Get user session
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import CartItemActions from "@/components/cart-item-actions"; // Client component for buttons
 import { formatPrice } from "@/app//lib/utils"; // Helper function for currency formatting
+import { headers } from "next/headers";
+import { auth } from "@/auth";
 
 export const metadata: Metadata = {
   title: "Shopping Cart | MyShop",
@@ -24,9 +25,11 @@ export const metadata: Metadata = {
 // }
 
 export default async function CartPage() {
-  const session = await auth();
+  const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
 
-  if (!session?.user?.id) {
+  if (!session) {
     // Redirect to login if not authenticated
     // You might want to store the intended destination (/cart) in the redirect URL
     redirect("/login?callbackUrl=/cart");
@@ -88,7 +91,7 @@ export default async function CartPage() {
               >
                 <Link href={`/products/${item.product.slug}`}>
                   <Image
-                    src={item.imagePath ?? "/placeholder-image.png"}
+                    src={item.product.imagePath ?? "/placeholder-image.png"}
                     alt={item.product.name}
                     width={80}
                     height={80}

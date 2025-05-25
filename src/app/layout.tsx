@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"; // Assuming Shadcn setup
-import SessionProviderWrapper from "@/components/session-provider-wrapper"; // See below
 import Header from "@/components/layout/header"; // Create this component
 import Footer from "@/components/layout/footer"; // Create this component
 import { Toaster } from "@/components/ui/sonner"; // From Shadcn
@@ -44,7 +43,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         {/* SessionProvider needs to be in a Client Component */}
-        <SessionProviderWrapper>
+
           {/* ThemeProvider for Shadcn dark/light mode */}
           <ThemeProvider
             attribute="class"
@@ -61,7 +60,7 @@ export default function RootLayout({
             </div>
             <Toaster richColors /> {/* For Shadcn toast notifications */}
           </ThemeProvider>
-        </SessionProviderWrapper>
+     
       </body>
     </html>
   );

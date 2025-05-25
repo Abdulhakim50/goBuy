@@ -1,18 +1,21 @@
 // src/app/(main)/account/layout.tsx
 import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/app/lib/auth'; // Server-side auth helper
 import AccountNav from '@/components/AccountNav';
+import { headers } from 'next/headers'; // For accessing request headers
+import { auth } from '@/auth'; // Import your auth module
 
 export default async function AccountLayout({
     children,
 }: {
     children: ReactNode;
 }) {
-    const session = await auth();
+    const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
 
     // Protect all routes within this layout
-    if (!session?.user?.id) {
+    if (!session) {
         // Redirect to login, passing the intended destination
         redirect('/login?callbackUrl=/account/orders'); // Redirect to orders by default
     }

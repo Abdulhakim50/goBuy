@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import prisma from "@/app/lib/prisma";
 import { Prisma } from "@prisma/client";
 
-import { auth } from "@/app/lib/auth"; // Get user session info
 import { Cart } from "@prisma/client";
+import { headers } from "next/headers"; // For getting request headers
+import { auth } from "@/auth";
 
 // Type guard to check if user is authenticated
 type AuthError = { error: string; status: number };
@@ -15,8 +16,11 @@ type CartResponse =
   | { success: false; error: string; status?: number };
 
 async function ensureAuthenticated(): Promise<string | AuthError> {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const session = await auth.api.getSession({
+     headers: await headers() // you need to pass the headers object.
+ })
+ 
+  if (!session) {
     // Can't redirect directly from here if called via fetch/RPC
     // Return an error object or specific code
     return { error: "Unauthenticated", status: 401 };

@@ -18,10 +18,11 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useActionState } from "react";
-import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
 // Separate component for the submit button to use useFormStatus
-function SubmitButton({ pending }) {
+function SubmitButton({ pending } : { pending: boolean }) {
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -34,11 +35,18 @@ export default function SignupPage() {
   // useFormState takes the action and initial state
   const [state, formAction, pending] = useActionState(signupAction, undefined); // Initial state is undefined
 
-   const { data: session, status } = useSession();
-  
+   const { 
+        data: session, 
+        isPending, //loading state
+        error, //error object
+        refetch //refetch the session
+    } = authClient.useSession() 
+     
+
+    
    
     
-      if (!session) {
+      if (session) {
         redirect('/')
       }
 

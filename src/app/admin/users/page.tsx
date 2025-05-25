@@ -98,7 +98,8 @@ export default async function AdminUsersPage({
                                             <UserRoleSelector userId={user.id} currentRole={user.role} />
                                         </TableCell>
                                         <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="te
+                                        xt-right">
                                             {/* User Actions (Delete) Client Component */}
                                              <UserActions userId={user.id} />
                                         </TableCell>

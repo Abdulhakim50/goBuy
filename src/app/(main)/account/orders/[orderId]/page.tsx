@@ -4,13 +4,14 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import prisma from '@/app/lib/prisma';
-import { auth } from '@/app/lib/auth';
 import { formatPrice } from '@/app/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { OrderStatus } from '@prisma/client'; // Import enum if you used it
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { auth } from '@/auth';
+import { headers } from 'next/headers'; // For accessing request headers
 
 // Helper function (same as in orders list page)
 function getStatusBadgeVariant(status: OrderStatus): "default" | "secondary" | "destructive" | "outline" {
@@ -48,10 +49,12 @@ export async function generateMetadata({ params }: OrderDetailPageProps): Promis
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
     const { orderId } = params;
-    const session = await auth();
+    const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
 
     // 1. Authentication Check
-    if (!session?.user?.id) {
+    if (!session) {
         redirect(`/login?callbackUrl=/account/orders/${orderId}`);
     }
     const userId = session.user.id;
@@ -67,7 +70,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                             id: true,
                             name: true,
                             slug: true,
-                            images: true,
+                            imagePath: true,
                         },
                     },
                 },
@@ -127,7 +130,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                          <div key={item.id} className="flex items-start gap-4">
                              <Link href={`/products/${item.product.slug}`}>
                                  <Image
-                                     src={item.product.images?.[0] ?? '/placeholder-image.png'}
+                                     src={item.product.imagePath?.[0] ?? '/placeholder-image.png'}
                                      alt={item.product.name}
                                      width={64}
                                      height={64}

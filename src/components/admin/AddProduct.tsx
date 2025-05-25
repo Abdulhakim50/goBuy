@@ -56,7 +56,7 @@ export default function AddProduct() {
                     <CardDescription>Fill in the details for the new product.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form action={formAction} className="grid gap-6" encType="multipart/form-data">
+                    <form action={formAction} className="grid gap-6" >
                          {/* Display general non-field error if needed */}
                          {state?.error && !state.fieldErrors && (
                              <p className="text-sm font-medium text-destructive">{state.error}</p>

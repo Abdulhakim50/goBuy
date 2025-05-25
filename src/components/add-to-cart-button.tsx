@@ -18,6 +18,8 @@ export default function AddToCartButton({ productId }: AddToCartButtonProps) {
   const [isPending, startTransition] = useTransition(); // Hook for loading state with Server Actions
    
   const { setCount } = useCartStore();  
+  const { incrementCount } = useCartStore();
+
 
   
   const handleAddToCart = () => {
@@ -42,11 +44,14 @@ export default function AddToCartButton({ productId }: AddToCartButtonProps) {
           // window.location.href = '/login'; // Simple redirect example
         }
       } else if (result?.success) {
+       
         toast("Success!", {
           description: result.message || "Item added to cart.",
         });
         // Optionally reset quantity or provide other feedback
         // setQuantity(1);
+        incrementCount(quantity); // Just add the quantity
+
       } else {
         // Fallback generic error
         toast("Error", {

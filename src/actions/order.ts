@@ -1,10 +1,11 @@
 "use server";
 
 import prisma from "@/app/lib/prisma";
-import { auth } from "@/app/lib/auth";
 import { stripe, calculateOrderAmountInCents } from "@/app/lib/stripe";
 import { CartItem, Product, OrderStatus,UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import { headers } from "next/headers"; // For getting request headers
 
 type CartItemWithProduct = CartItem & {
   product: Pick<Product, "id" | "name" | "price" | "stock">;
@@ -21,7 +22,10 @@ type CreatePaymentIntentResult =
   | { error: string; status?: number };
 
 export async function createPaymentIntentAction(): Promise<CreatePaymentIntentResult> {
-  const session = await auth();
+   const session = await auth.api.getSession({
+      headers: await headers() // you need to pass the headers object.
+  })
+  
   if (!session?.user?.id) {
     return { error: "User not authenticated", status: 401 };
   }
@@ -158,7 +162,10 @@ export async function updateOrderStatusAction(
 ): Promise<OrderActionResult> {
 
   // 1. Check Authentication & Authorization (Admin Only)
-  const session = await auth();
+   const session = await auth.api.getSession({
+    headers: await headers() // you need to pass the headers object.
+})
+
   if (!session?.user || session.user.role !== UserRole.ADMIN) {
       return { error: "Unauthorized: Admin access required." };
   }
