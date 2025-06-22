@@ -75,9 +75,9 @@ export default function LoginPage() {
 
 
     useEffect(() => {
-        if (state?.error) {
+        if (state?.error ) {
             toast('Login Failed',{
-                description: state.error,
+                description: Array.isArray(state.error) && state.error.map((e :any)=>e.msg),
                 
             });
         }
@@ -104,7 +104,13 @@ export default function LoginPage() {
                                 placeholder="m@example.com"
                               
                             />
-                             <div>{state?.error?.map((e) => (e.from === "email" ? e.msg : null))}</div>
+                             <div>
+                                {Array.isArray(state?.error) &&
+                                    state.error.map((e: any, idx: number) =>
+                                        e.from === "email" ? <div key={idx}>{e.msg}</div> : null
+                                    )
+                                }
+                             </div>
 
                         </div>
                         <div className="grid gap-2">

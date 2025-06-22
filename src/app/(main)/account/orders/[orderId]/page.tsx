@@ -1,4 +1,6 @@
 // src/app/(main)/account/orders/[orderId]/page.tsx
+
+
 import { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -12,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { auth } from '@/auth';
 import { headers } from 'next/headers'; // For accessing request headers
+
+
+
 
 // Helper function (same as in orders list page)
 function getStatusBadgeVariant(status: OrderStatus): "default" | "secondary" | "destructive" | "outline" {
@@ -31,13 +36,10 @@ function getStatusBadgeVariant(status: OrderStatus): "default" | "secondary" | "
     }
 }
 
-// Define expected params structure
-type OrderDetailPageProps = {
-    params: { orderId: string };
-};
+
 
 // Function to generate dynamic metadata (optional but good)
-export async function generateMetadata({ params }: OrderDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { orderId: string }}): Promise<Metadata> {
   const orderId = params.orderId;
   // Basic check for user might be possible here if needed, but auth check is main security
   return {
@@ -47,7 +49,7 @@ export async function generateMetadata({ params }: OrderDetailPageProps): Promis
 }
 
 
-export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
+export default async function OrderDetailPage({ params }: { params: { orderId: string }}) {
     const { orderId } = params;
     const session = await auth.api.getSession({
     headers: await headers() // you need to pass the headers object.

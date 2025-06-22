@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
+import { useCartStore } from "@/stores/cart-store";
 import {
   updateCartItemQuantityAction,
   removeFromCartAction,
 } from "@/actions/cart"; // Import Server Actions
+import { set } from "zod";
 
 interface CartItemActionsProps {
   cartItemId: string;
@@ -25,50 +27,87 @@ export default function CartItemActions({
   const [isPendingUpdate, startUpdateTransition] = useTransition();
   const [isPendingRemove, startRemoveTransition] = useTransition();
 
-  const handleQuantityChange = (newQuantityStr: string) => {
-    const newQuantity = parseInt(newQuantityStr, 10);
+  const {
+    items,
+    totalItems,
+    totalPrice,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    isLoading,
+    error,
+  } = useCartStore();
 
-    if (isNaN(newQuantity) || newQuantity === quantity) return; // No change or invalid input
+  const handleQuantityChange = async (newQuantityStr: string) => {
+    const item = items.find((i) => i.id === cartItemId);
+    if (!item || typeof item.stock !== "number") {
+      toast("Item not found or stock unavailable");
+      return;
+    }
 
-    // Optimistic UI update (optional but improves perceived performance)
-    const previousQuantity = quantity;
-    setQuantity(newQuantity); // Update local state immediately
+    if (item.stock < parseInt(newQuantityStr)) {
+      toast("Insufficient stock available");
+      return;
+    }
 
-    startUpdateTransition(async () => {
-      const result = await updateCartItemQuantityAction(
-        cartItemId,
-        newQuantity
-      );
+    const newQuantity =
+      item?.stock < parseInt(newQuantityStr)
+        ? item?.stock
+        : parseInt(newQuantityStr, 10);
+    setQuantity(newQuantity);
 
-      if (result?.error) {
-        // Revert optimistic update on error
-        setQuantity(previousQuantity);
-        toast("Update Failed", {
-          description: result.error,
-        });
-      } else {
-        // Success message (optional)
-        // toast({ title: "Quantity updated" });
-        // No need to setQuantity again, revalidation will fetch the latest state
-      }
-    });
+    const res = await updateQuantity(cartItemId, newQuantity);
+
+    if (res?.success === false) {
+      toast(res.message, {});
+      return;
+    }
+
+    // const newQuantity = parseInt(newQuantityStr, 10);
+
+    // if (isNaN(newQuantity) || newQuantity === quantity) return; // No change or invalid input
+
+    // // Optimistic UI update (optional but improves perceived performance)
+    // const previousQuantity = quantity;
+    // setQuantity(newQuantity); // Update local state immediately
+
+    // startUpdateTransition(async () => {
+    //   const result = await updateCartItemQuantityAction(
+    //     cartItemId,
+    //     newQuantity
+    //   );
+
+    //   if (result?.error) {
+    //     // Revert optimistic update on error
+    //     setQuantity(previousQuantity);
+    //     toast("Update Failed", {
+    //       description: result.error,
+    //     });
+    //   } else {
+    //     // Success message (optional)
+    //     // toast({ title: "Quantity updated" });
+    //     // No need to setQuantity again, revalidation will fetch the latest state
+    //   }
+    // });
   };
 
   const handleRemoveItem = () => {
-    startRemoveTransition(async () => {
-      const result = await removeFromCartAction(cartItemId);
+    removeItem(cartItemId);
 
-      if (result?.error) {
-        toast("Remove Failed", {
-          description: result.error,
-        });
-      } else {
-        toast("Item Removed", {
-          description: "The item has been removed from your cart.",
-        });
-        // The page will re-render due to revalidatePath in the action
-      }
-    });
+    // startRemoveTransition(async () => {
+    //   // const result = await removeFromCartAction(cartItemId);
+
+    //   if (result?.error) {
+    //     toast("Remove Failed", {
+    //       description: result.error,
+    //     });
+    //   } else {
+    //     toast("Item Removed", {
+    //       description: "The item has been removed from your cart.",
+    //     });
+    //     // The page will re-render due to revalidatePath in the action
+    //   }
+    // });
   };
 
   const isPending = isPendingUpdate || isPendingRemove;
@@ -91,7 +130,7 @@ export default function CartItemActions({
       <Button
         variant="outline"
         size="icon"
-        onClick={handleRemoveItem}
+        onClick={() => removeItem(productId)}
         disabled={isPending}
         className="h-9 w-9"
         aria-label="Remove item"

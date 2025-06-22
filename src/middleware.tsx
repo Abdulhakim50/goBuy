@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import { nanoid } from "nanoid";
 // Only block and redirect if user is clearly not authenticated based on cookie
+
+  export const CART_SESSION_COOKIE_NAME = 'cart_session_id';
 export function middleware(request: NextRequest) {
+     const response = NextResponse.next();
     const { pathname } = request.nextUrl;
     const sessionCookie = getSessionCookie(request);
 
+
+    let cartSessionId = request.cookies.get(CART_SESSION_COOKIE_NAME)?.value;
+
     const isAdminPath = pathname.startsWith('/admin');
+    if (!cartSessionId) {
+    cartSessionId = nanoid(); // Generate a unique ID
+    response.cookies.set(CART_SESSION_COOKIE_NAME, cartSessionId, {
+      path: '/',
+      httpOnly: true, // Important for security
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+}
 
     if (isAdminPath) {
         if (!sessionCookie) {

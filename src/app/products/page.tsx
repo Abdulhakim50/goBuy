@@ -1,11 +1,13 @@
+// app/products/page.tsx
+
 import prisma from "@/app/lib/prisma";
 import ProductCard from "@/components/product-card";
 import { Metadata } from "next";
 import PaginationControls from "@/components/admin/pagination-controls";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Prisma } from '@prisma/client'; // Import Prisma namespace for types
-import ProductFilters from "@/components/product-filters"; // Import filter/sort controls component
+import { Prisma } from '@prisma/client';
+import ProductFilters from "@/components/product-filters";
 
 export const metadata: Metadata = {
   title: "Products | MyShop",
@@ -16,11 +18,10 @@ export const dynamic = 'force-dynamic';
 
 const PRODUCTS_PER_PAGE = 12;
 
-// Define allowed sort options
+// --- Define Types (as before) ---
 type SortOption = 'newest' | 'price-asc' | 'price-desc';
 const DEFAULT_SORT: SortOption = 'newest';
 
-// Define allowed filter options (example)
 type FilterOption = 'all' | 'in-stock';
 const DEFAULT_FILTER: FilterOption = 'all';
 
@@ -30,29 +31,42 @@ export default async function ProductsPage({
 }: {
     searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-    // --- Read Search Params ---
+    // --- 1. Read All Search Params ---
     const page = Number(searchParams?.page ?? '1');
     const sort = (searchParams?.sort as SortOption) ?? DEFAULT_SORT;
     const filter = (searchParams?.filter as FilterOption) ?? DEFAULT_FILTER;
-    // Add category, search term params later...
-    // const category = searchParams?.category as string | undefined;
-    // const searchTerm = searchParams?.search as string | undefined;
+    // NEW: Read min and max price from URL search params
+    const minPrice = searchParams?.minPrice as string | undefined;
+    const maxPrice = searchParams?.maxPrice as string | undefined;
 
     // --- Pagination Logic ---
     const take = PRODUCTS_PER_PAGE;
     const skip = (page - 1) * take;
 
-    // --- Build Prisma Query Options ---
-    let whereClause: Prisma.ProductWhereInput = {}; // Start with empty where clause
-    let orderByClause: Prisma.ProductOrderByWithRelationInput = {}; // Start with empty order clause
+    // --- 2. Build Prisma Query Options ---
+    let whereClause: Prisma.ProductWhereInput = {};
+    let orderByClause: Prisma.ProductOrderByWithRelationInput = {};
 
-    // Apply Filters
+    // Apply Stock Filter
     if (filter === 'in-stock') {
-        whereClause.stock = { gt: 0 }; // Filter for stock greater than 0
+        whereClause.stock = { gt: 0 };
     }
-    // Add other filters (category, search term) here
-    // if (category) { whereClause.categoryId = category; } // Assuming category relation
-    // if (searchTerm) { whereClause.name = { contains: searchTerm, mode: 'insensitive' }; }
+
+    // NEW: Apply Price Filter
+    const priceCondition: { gte?: number; lte?: number } = {};
+    // Check if minPrice is a valid number string before adding to query
+    if (minPrice && !isNaN(Number(minPrice))) {
+        priceCondition.gte = Number(minPrice);
+    }
+    // Check if maxPrice is a valid number string
+    if (maxPrice && !isNaN(Number(maxPrice))) {
+        priceCondition.lte = Number(maxPrice);
+    }
+    // If either gte or lte was set, add the price condition to the main where clause
+    if (Object.keys(priceCondition).length > 0) {
+        whereClause.price = priceCondition;
+    }
+
 
     // Apply Sorting
     switch (sort) {
@@ -67,66 +81,75 @@ export default async function ProductsPage({
             orderByClause = { createdAt: 'desc' };
             break;
     }
-    // --- End Build Prisma Query Options ---
 
-
-    // --- Fetch Paginated & Filtered/Sorted Products AND Total Count ---
+    // --- Fetch Data ---
     const [products, totalProducts] = await prisma.$transaction([
         prisma.product.findMany({
-            where: whereClause, // Apply dynamic where clause
-            orderBy: orderByClause, // Apply dynamic order clause
+            where: whereClause,
+            orderBy: orderByClause,
             skip: skip,
             take: take,
-            select: { id: true, name: true, slug: true, price: true, imagePath: true, stock: true },
+            select: { id: true, name: true, slug: true, price: true, imagePath: true, stock: true ,description : true},
         }),
-        prisma.product.count({ where: whereClause }), // Count based on the same filters
+        prisma.product.count({ where: whereClause }),
     ]);
-
+    
     const totalPages = Math.ceil(totalProducts / take);
     
-    // --- End Fetching Logic ---
-    
 
-    return (
-    <div>
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold">Products</h1>
-            {/* --- Sorting/Filtering Controls --- */}
-            <ProductFilters currentSort={sort} currentFilter={filter} />
-        </div>
+   return (
+  <div className="">
+    <h1 className="text-3xl font-bold mb-6">Products</h1>
 
+    <div className="flex flex-col md:flex-row gap-6">
+      {/* Filters Section */}
+      <aside className="md:w-1/4 w-full border rounded-lg p-4 bg-muted">
+        <ProductFilters
+          currentSort={sort}
+          currentFilter={filter}
+          currentMinPrice={minPrice}
+          currentMaxPrice={maxPrice}
+        />
+      </aside>
 
-        {/* Product Grid & Pagination (Conditional Rendering as before) */}
+      {/* Products Section */}
+      <main className="md:w-3/4 w-full">
         {products.length === 0 && page === 1 ? (
-             <div className="text-center py-16 border rounded-lg bg-secondary">
-                <p className="text-muted-foreground mb-4">No products found matching your criteria.</p>
-                 <Button variant="outline" asChild><Link href="/products">Clear Filters</Link></Button>
-            </div>
+          <div className="text-center py-16 border rounded-lg bg-secondary">
+            <p className="text-muted-foreground mb-4">
+              No products found matching your criteria.
+            </p>
+            <Button variant="outline" asChild>
+              <Link href="/products">Clear Filters</Link>
+            </Button>
+          </div>
         ) : products.length === 0 && page > 1 ? (
-            // ... (empty page message as before) ...
-             <div className="text-center py-16 border rounded-lg bg-secondary">
-                <p className="text-muted-foreground mb-4">No products found on this page.</p>
-                 <Button variant="outline" asChild><Link href={`/products?page=1&sort=${sort}&filter=${filter}`}>Go to First Page</Link></Button>
-            </div>
+          <div className="text-center py-16 border rounded-lg bg-secondary">
+            <p className="text-muted-foreground mb-4">No products found on this page.</p>
+            <Button variant="outline" asChild>
+              <Link href={`/products?page=1&sort=${sort}&filter=${filter}`}>
+                Go to First Page
+              </Link>
+            </Button>
+          </div>
         ) : (
-            <>
-                {/* Product Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-                    {products.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
 
-                {/* Pagination Controls - Pass existing filters/sorts */}
-                <PaginationControls
-                    currentPage={page}
-                    totalPages={totalPages}
-                    baseUrl="/products"
-                    // Pass current sort/filter to preserve them during pagination
-                    preserveQuery={{ sort, filter }}
-                />
-            </>
+            <PaginationControls
+              currentPage={page}
+              totalPages={totalPages}
+              baseUrl="/products"
+              preserveQuery={{ sort, filter, minPrice, maxPrice }}
+            />
+          </>
         )}
-        </div>
-    );
+      </main>
+    </div>
+  </div>
+);
 }

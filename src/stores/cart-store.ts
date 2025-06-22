@@ -1,76 +1,238 @@
-// src/stores/cart-store.ts
 import { create } from 'zustand';
+import { Product } from '@prisma/client'; // Assuming you have this type from Prisma
 
-// Define the state structure and actions
+// Define a type for the return value of actions, perfect for toast notifications
+export interface CartActionResult {
+  success: boolean;
+  message: string;
+}
+
+export interface CartItemClient extends Product { // Extends Product to include all product details
+  productId: string; // Explicitly ensure productId is here for clarity
+  quantity: number;
+  priceAtPurchase: number; // Price when added to cart
+}
+
 interface CartState {
-    itemCount: number;
-    fetchInitialCount: () => Promise<void>; // Action to get count on initial load/login
-    incrementCount: (by?: number) => void; // Action when adding items
-    decrementCount: (by?: number) => void; // Action when removing items
-    setCount: (count: number) => void; // Action to set count directly (e.g., after full cart fetch)
-    resetCount: () => void; // Action on logout or cart clear
+  items: CartItemClient[];
+  isLoading: boolean;
+  error: string | null; // For persistent errors, not transient toasts
+  totalItems: number;
+  totalPrice: number;
+  cartId: string | null;
+
+  // Actions now return a promise with a result object
+  addItem: (product: Product, quantity: number) => Promise<CartActionResult>;
+  removeItem: (productId: string) => Promise<CartActionResult>;
+  updateQuantity: (productId: string, quantity: number) => Promise<CartActionResult>;
+  clearCart: () => Promise<CartActionResult>;
+  loadCart: () => Promise<void>; // Load doesn't need a result, it just populates state
+  setCartId: (id: string | null) => void;
 }
 
-// --- Mock Fetch Function (Replace with actual API/Server Action call) ---
-// This function needs to securely get the item count for the logged-in user
-// or potentially read from localStorage for guests.
-// It's complex because it needs to run client-side but get server/session data.
-// A dedicated Route Handler or using useSession + fetch might be needed.
-// For simplicity, we'll start with a placeholder.
-async function fetchUserCartItemCount(): Promise<number> {
-    console.log("Attempting to fetch initial cart count...");
-    // Option 1: Route Handler (Example)
-    // try {
-    //     const response = await fetch('/api/cart/count'); // Create this API endpoint
-    //     if (!response.ok) throw new Error('Failed to fetch count');
-    //     const data = await response.json();
-    //     return data.itemCount ?? 0;
-    // } catch (error) {
-    //     console.error("Error fetching cart count:", error);
-    //     return 0;
-    // }
+// --- Helper Functions for DRY principle ---
 
-    // Option 2: Placeholder (replace!)
-    // Simulate fetching - replace with real logic using useSession/fetch or Route Handler
-    // This requires careful handling of auth state client-side.
-    await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
-    // In a real app, this would involve checking session, calling an API/action
-    const simulatedCount = 0; // Replace with actual fetch result
-    console.log(`Simulated fetch returned count: ${simulatedCount}`);
-    return simulatedCount;
+const calculateTotals = (items: CartItemClient[]) => {
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = items.reduce((sum, item) => sum + item.priceAtPurchase * item.quantity, 0);
+  return { totalItems, totalPrice };
+};
 
-    // Option 3: Read from localStorage (for guest cart count) - Combine with Option 1/2 for logged-in users
-}
-// --- End Mock Fetch ---
+// Helper to map server cart data to client state format
+const mapServerCartToClientState = (serverCart: any) => {
+  if (!serverCart || !serverCart.items) {
+    return { items: [], totalItems: 0, totalPrice: 0, cartId: null };
+  }
+  const clientItems: CartItemClient[] = serverCart.items.map((item: any) => ({
+    ...item.product, // Spread all product details
+    productId: item.productId,
+    quantity: item.quantity,
+    priceAtPurchase: item.priceAtPurchase,
+  }));
+  return {
+    items: clientItems,
+    ...calculateTotals(clientItems),
+    cartId: serverCart.id,
+  };
+};
 
+// --- Zustand Store Implementation ---
 
 export const useCartStore = create<CartState>((set, get) => ({
-    itemCount: 0, // Initial state
+  items: [],
+  isLoading: false,
+  error: null,
+  totalItems: 0,
+  totalPrice: 0,
+  cartId: null,
 
-    // Fetches the initial count (e.g., on app load or login)
-    fetchInitialCount: async () => {
-        // Avoid multiple fetches if count is already > 0 maybe? Or check session status.
-        // if (get().itemCount > 0) return;
-        const count = await fetchUserCartItemCount();
-        set({ itemCount: count });
-    },
+  setCartId: (id) => set({ cartId: id }),
 
-    // Increment count (usually by 1 item type added)
-    incrementCount: (by = 1) => set((state) => ({ itemCount: state.itemCount + by })),
+  addItem: async (product, quantity) => {
+    set({ isLoading: true, error: null });
+    const existingItem = get().items.find(item => item.id === product.id);
+    const newQuantity = (existingItem?.quantity || 0) + quantity;
 
-    // Decrement count (usually by 1 item type removed)
-    decrementCount: (by = 1) => set((state) => ({ itemCount: Math.max(0, state.itemCount - by) })), // Ensure count doesn't go below 0
+    // **IMPROVED: Comprehensive stock check**
+    if (product.stock < newQuantity) {
+      const message = existingItem
+        ? `Cannot add more. You already have ${existingItem.quantity} in cart, and only ${product.stock} are available.`
+        : `Not enough stock. Only ${product.stock} available.`;
+      set({ isLoading: false }); // No need for an error in state, the return value handles it
+      return { success: false, message };
+    }
 
-    // Set count directly (e.g., after adding/removing/updating quantity on cart page)
-    setCount: (count) => set({ itemCount: Math.max(0, count) }),
+    try {
+      // Optimistic update
+      let updatedItems: CartItemClient[];
+      if (existingItem) {
+        updatedItems = get().items.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: newQuantity, priceAtPurchase: product.price }
+            : item
+        );
+      } else {
+        updatedItems = [
+          ...get().items,
+          { ...product, productId: product.id, quantity, priceAtPurchase: product.price },
+        ];
+      }
+      set({ items: updatedItems, ...calculateTotals(updatedItems) });
 
-    // Reset count (e.g., on logout or after successful order placement)
-    resetCount: () => set({ itemCount: 0 }),
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, quantity }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add item to cart');
+      }
+
+      const { cart: updatedCart } = await response.json();
+      set({ ...mapServerCartToClientState(updatedCart), isLoading: false });
+      return { success: true, message: `${product.name} added to cart!` };
+
+    } catch (error: any) {
+      console.error("Error adding item:", error);
+      // Revert optimistic update by reloading the cart from the server
+      await get().loadCart();
+      set({ isLoading: false }); // loadCart will handle loading state
+      return { success: false, message: error.message };
+    }
+  },
+
+  removeItem: async (productId) => {
+    set({ isLoading: true, error: null });
+    const originalItems = get().items;
+    const itemToRemove = originalItems.find(item => item.productId === productId);
+
+    if (!itemToRemove) {
+      return { success: false, message: "Item not found in cart." };
+    }
+
+    // Optimistic update
+    const updatedItems = originalItems.filter(item => item.productId !== productId);
+    set({ items: updatedItems, ...calculateTotals(updatedItems) });
+
+    try {
+      const response = await fetch('/api/cart/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to remove item');
+
+      const { cart: updatedCart } = await response.json();
+      set({ ...mapServerCartToClientState(updatedCart), isLoading: false });
+      return { success: true, message: `${itemToRemove.name} removed from cart.` };
+
+    } catch (error: any) {
+      set({ items: originalItems, ...calculateTotals(originalItems), error: error.message, isLoading: false });
+      return { success: false, message: error.message };
+    }
+  },
+
+  updateQuantity: async (productId, quantity) => {
+    if (quantity <= 0) {
+      return get().removeItem(productId);
+    }
+
+    set({ isLoading: true, error: null });
+    const originalItems = get().items;
+    const itemToUpdate = originalItems.find(item => item.productId === productId);
+
+    if (!itemToUpdate) {
+        set({ isLoading: false });
+        return { success: false, message: "Item not found in cart." };
+    }
+
+    // **IMPROVED: Stock check on update**
+    if (itemToUpdate.stock < quantity) {
+        set({ isLoading: false });
+        const message = `Cannot update quantity. Only ${itemToUpdate.stock} available.`;
+        return { success: false, message };
+    }
+
+    // Optimistic update
+    const updatedItems = originalItems.map(item =>
+      item.productId === productId ? { ...item, quantity } : item
+    );
+    set({ items: updatedItems, ...calculateTotals(updatedItems) });
+
+    try {
+      const response = await fetch('/api/cart/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update quantity');
+
+      const { cart: updatedCart } = await response.json();
+      set({ ...mapServerCartToClientState(updatedCart), isLoading: false });
+      return { success: true, message: `Cart updated.` };
+
+    } catch (error: any) {
+      set({ items: originalItems, ...calculateTotals(originalItems), error: error.message, isLoading: false });
+      return { success: false, message: error.message };
+    }
+  },
+
+  clearCart: async () => {
+    set({ isLoading: true, error: null });
+    const originalItems = get().items;
+    set({ items: [], totalItems: 0, totalPrice: 0 }); // Optimistic
+
+    try {
+      const response = await fetch('/api/cart/clear', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to clear cart');
+      set({ isLoading: false, cartId: null });
+      return { success: true, message: "Cart cleared successfully." };
+    } catch (error: any) {
+      set({ items: originalItems, ...calculateTotals(originalItems), error: error.message, isLoading: false });
+      return { success: false, message: error.message };
+    }
+  },
+
+  loadCart: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch('/api/cart');
+      if (response.status === 404) {
+        set({ ...mapServerCartToClientState(null), isLoading: false });
+        return;
+      }
+      if (!response.ok) throw new Error('Failed to load cart from server');
+
+      const cartData = await response.json();
+      set({ ...mapServerCartToClientState(cartData), isLoading: false });
+
+    } catch (error: any) {
+      console.error("Error loading cart:", error);
+      set({ error: error.message, isLoading: false, items: [], totalItems: 0, totalPrice: 0, cartId: null });
+    }
+  },
 }));
-
-// --- Optional: Trigger initial fetch ---
-// This attempts to fetch count when the store is first initialized (on client)
-// Be mindful of timing with session loading. Might be better to call this explicitly
-// from a layout or main component once the session is ready.
-// useCartStore.getState().fetchInitialCount();
-// console.log("Initial cart count fetch triggered from store definition.");

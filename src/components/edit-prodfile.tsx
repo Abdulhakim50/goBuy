@@ -11,10 +11,8 @@ import Image from "next/image";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-interface EditProfilePageProps {
-  profile: User ; // profile data passed from parent server component
-  // profileId: string;
-}
+
+
 
 interface SubmitUpdateButtonProps {
   pending: boolean;
@@ -29,7 +27,7 @@ function SubmitUpdateButton({ pending }: SubmitUpdateButtonProps) {
   );
 }
 
-const EditProfile = ({ profile }: EditProfilePageProps) => {
+const EditProfile = ({ profile }: {profile : User}) => {
   const [state, formAction, pending] = useActionState(editProfile, undefined);
 
   useEffect(() => {
@@ -57,7 +55,7 @@ const EditProfile = ({ profile }: EditProfilePageProps) => {
       {/* Name */}
       <div className="grid gap-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={profile.name} className=" w-96" required />
+        <Input id="name" name="name" defaultValue={profile.name || ""} className=" w-96" required />
         {state?.fieldErrors?.name && (
           <p className="text-sm font-medium text-destructive">
             {state.fieldErrors.name}
@@ -68,7 +66,7 @@ const EditProfile = ({ profile }: EditProfilePageProps) => {
       {/* Description */}
       <div className="grid gap-2">
         <Label htmlFor="description">Email</Label>
-        <Input id="email" name="email" defaultValue={profile.email} className=" w-96" required />
+        <Input id="email" name="email" defaultValue={profile.email || ""} className=" w-96" required />
 
         {state?.fieldErrors?.description && (
           <p className="text-sm font-medium text-destructive">

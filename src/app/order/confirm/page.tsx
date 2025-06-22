@@ -1,5 +1,5 @@
-// src/app/order/confirm/page.tsx
-import { Suspense } from 'react';
+
+import { Suspense, use } from 'react';
 import { stripe } from '@/app/lib/stripe'; // Server-side Stripe instance
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,14 @@ import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Metadata } from 'next';
 import { Loader2 } from 'lucide-react';
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
     title: 'Order Confirmation | MyShop',
 };
 
 // This component will extract params and fetch status
 async function ConfirmationStatus({ paymentIntentId, clientSecret }: { paymentIntentId: string, clientSecret: string }) {
+
+
     if (!stripe) {
         return <StatusDisplay status="error" message="Stripe configuration error." />;
     }
@@ -29,6 +31,7 @@ async function ConfirmationStatus({ paymentIntentId, clientSecret }: { paymentIn
             case 'succeeded':
                 // Important: While this indicates success to the user,
                 // rely on WEBHOOKS to fulfill the order reliably in your backend.
+                
                 return <StatusDisplay status="success" message="Payment Successful! Your order is confirmed." paymentIntentId={paymentIntentId} />;
             case 'processing':
                 return <StatusDisplay status="processing" message="Your payment is processing. We'll update you when it's complete." />;

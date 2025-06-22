@@ -1,4 +1,4 @@
-"use server"; // Mark all functions in this file as Server Actions
+"use server"; 
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -6,10 +6,10 @@ import prisma from "@/app/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 import { Cart } from "@prisma/client";
-import { headers } from "next/headers"; // For getting request headers
+import { headers } from "next/headers"; 
 import { auth } from "@/auth";
 
-// Type guard to check if user is authenticated
+
 type AuthError = { error: string; status: number };
 type CartResponse =
   | { success: true; message: string }
@@ -17,18 +17,18 @@ type CartResponse =
 
 async function ensureAuthenticated(): Promise<string | AuthError> {
   const session = await auth.api.getSession({
-     headers: await headers() // you need to pass the headers object.
+     headers: await headers() 
  })
  
   if (!session) {
-    // Can't redirect directly from here if called via fetch/RPC
-    // Return an error object or specific code
+    
+    
     return { error: "Unauthenticated", status: 401 };
   }
   return session.user.id;
 }
 
-// Helper to get or create user's cart
+
 type CartWithItems = Prisma.CartGetPayload<{ include: { items: true } }>;
 
 async function getOrCreateCart(userId: string): Promise<CartWithItems> {
@@ -47,11 +47,11 @@ async function getOrCreateCart(userId: string): Promise<CartWithItems> {
   return cart;
 }
 
-// --- Add to Cart Action ---
+
 export async function addToCartAction(productId: string, quantity: number) {
   const authResult = await ensureAuthenticated();
   if (typeof authResult !== "string") {
-    // Check if it's an AuthError object
+    
     return {
       success: false,
       error: authResult.error || "Unauthorized",
@@ -84,7 +84,7 @@ export async function addToCartAction(productId: string, quantity: number) {
     );
     let requiresNewItem = false;
     if (existingItem) {
-      // Check combined quantity against stock
+      
       const newQuantity = existingItem.quantity + quantity;
       if (product.stock < newQuantity) {
         return {
@@ -92,13 +92,13 @@ export async function addToCartAction(productId: string, quantity: number) {
           status: 400,
         };
       }
-      // Update quantity
+      
       await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: newQuantity },
       });
     } else {
-      // Add new item
+      
       await prisma.cartItem.create({
         data: {
           cartId: cart.id,
@@ -111,13 +111,13 @@ export async function addToCartAction(productId: string, quantity: number) {
 
     const updatedCart = await prisma.cart.findUnique({
       where: { userId },
-      select: { _count: { select: { items: true } } } // Select distinct item count
+      select: { _count: { select: { items: true } } } 
  });
  const newItemCount = updatedCart?._count.items ?? cart.items.length + (requiresNewItem ? 1 : 0);
 
-    // Revalidate the cart page and product page (or layout potentially)
+    
     revalidatePath("/cart");
-    revalidatePath(`/products/${productId}`); // Or use tags if more complex
+    revalidatePath(`/products/${productId}`); 
 
     return { success: true, message: "Item added to cart!" , newCartItemCount: newItemCount };
   } catch (error) {
@@ -126,7 +126,7 @@ export async function addToCartAction(productId: string, quantity: number) {
   }
 }
 
-// --- Remove From Cart Action ---
+
 export async function removeFromCartAction(cartItemId: string) {
   const authResult = await ensureAuthenticated();
   if (typeof authResult !== "string")
@@ -138,7 +138,7 @@ export async function removeFromCartAction(cartItemId: string) {
   const userId = authResult;
 
   try {
-    // Ensure the item belongs to the user's cart (security check)
+    
     const cartItem = await prisma.cartItem.findFirst({
       where: {
         id: cartItemId,
@@ -153,8 +153,12 @@ export async function removeFromCartAction(cartItemId: string) {
     await prisma.cartItem.delete({
       where: { id: cartItemId },
     });
+  
 
+    
     revalidatePath("/cart");
+    
+    
     return { success: true, message: "Item removed." };
   } catch (error) {
     console.error("Error removing item from cart:", error);
@@ -162,7 +166,7 @@ export async function removeFromCartAction(cartItemId: string) {
   }
 }
 
-// --- Update Cart Item Quantity Action ---
+
 export async function updateCartItemQuantityAction(
   cartItemId: string,
   quantity: number
@@ -177,7 +181,7 @@ export async function updateCartItemQuantityAction(
   const userId = authResult;
 
   if (quantity <= 0) {
-    // If quantity is zero or less, treat as removal
+    
     return removeFromCartAction(cartItemId);
   }
 
@@ -187,7 +191,7 @@ export async function updateCartItemQuantityAction(
         id: cartItemId,
         cart: { userId: userId },
       },
-      include: { product: { select: { stock: true } } }, // Include product stock
+      include: { product: { select: { stock: true } } }, 
     });
 
     if (!cartItem) {

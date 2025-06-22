@@ -13,6 +13,7 @@ import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import PaymentElementForm from "./payment-element-form"; // Import the new component
 import { formatPrice } from "@/app/lib/utils";
+import { chapaPaymentInitaization } from "@/actions/chapa";
 // --- End Stripe Imports ---
 
 // Load Stripe outside of the component's render cycle
@@ -29,7 +30,7 @@ interface ShippingDetails {
   country: string;
 }
 
-export default function CheckoutFormWrapper() {
+export default function CheckoutFormWrapper({ method }: { method: string }) {
   const [isPendingAction, startTransition] = useTransition();
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
   const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
@@ -50,14 +51,37 @@ export default function CheckoutFormWrapper() {
 
     startTransition(async () => {
       const result =
-        await createPaymentIntentAction(/* pass shipping if needed */);
-      if (result.error) {
-        setError(result.error);
-        toast(/* ... */);
-      } else if (result.success && result.clientSecret) {
-        setClientSecret(result.clientSecret);
-        setOrderTotal(result.orderTotal);
-        setStep("payment");
+        method === "local"
+          ? await chapaPaymentInitaization()
+          : await createPaymentIntentAction(/* pass shipping if needed */);
+
+      if (method === "international") {
+        if ("error" in result) {
+          setError(result.error);
+          toast(result.error);
+        } else if (result.success && result.clientSecret) {
+          setClientSecret(result.clientSecret);
+          setOrderTotal(result.orderTotal);
+          setStep("payment");
+        }
+      } 
+      
+      if( method === "local") {
+        if ("error" in result) {
+          setError(result.error);
+          toast(result.error);
+        } else if (result.success ) {
+          console.log("Chapa result:", result);
+          // Assuming result.data contains the checkout_url
+          const checkoutUrl = result.data.data.checkout_url;
+          if (checkoutUrl) {
+            // Redirect to Chapa checkout
+            window.location.href = checkoutUrl;
+          } else {
+            setError("Failed to get checkout URL from Chapa.");
+            toast("Failed to get checkout URL from Chapa.");
+          }
+        }
       }
     });
   };

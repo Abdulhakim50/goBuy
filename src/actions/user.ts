@@ -6,6 +6,7 @@ import { UserRole } from "@prisma/client"; // Import enum
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { headers } from "next/headers"; // For getting request headers
+import { redirect } from "next/navigation";
 
 interface UserActionResult {
   error?: string | null;
@@ -85,8 +86,11 @@ export async function deleteUserAction(
   const session = await auth.api.getSession({
     headers: await headers(), // you need to pass the headers object.
   });
-
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
+  const user = await prisma.user.findUnique({
+    where : {id:session?.user.id},
+   
+  })
+  if (!session?.user || user?.role !== UserRole.ADMIN) {
     return { error: "Unauthorized: Admin access required." };
   }
 

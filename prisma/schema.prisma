@@ -108,8 +108,9 @@ model Product {
 
 model Cart {
   id        String     @id @default(cuid())
-  userId    String     @unique // Each user has one cart
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?     @unique // Each user has one cart
+  sessionId String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -120,6 +121,7 @@ model CartItem {
   cartId    String
   productId String
   quantity  Int
+  priceAtPurchase Float
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

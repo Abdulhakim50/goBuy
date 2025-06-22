@@ -6,7 +6,6 @@ import prisma from "@/app/lib/prisma";
 import { hash } from "bcryptjs"; // npm install bcryptjs @types/bcryptjs
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth"; // Import AuthError
-import { signIn } from "@/app/lib/auth"; // Import signIn for post-signup login
 import { auth,ErrorCode } from "@/auth";
 import { headers } from "next/headers";
 import { APIError } from "better-auth/api";

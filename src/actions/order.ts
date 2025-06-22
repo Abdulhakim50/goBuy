@@ -2,10 +2,10 @@
 
 import prisma from "@/app/lib/prisma";
 import { stripe, calculateOrderAmountInCents } from "@/app/lib/stripe";
-import { CartItem, Product, OrderStatus,UserRole } from "@prisma/client";
+import { CartItem, Product, OrderStatus, UserRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { headers } from "next/headers"; // For getting request headers
+import { headers } from "next/headers";
 
 type CartItemWithProduct = CartItem & {
   product: Pick<Product, "id" | "name" | "price" | "stock">;
@@ -16,30 +16,28 @@ interface OrderActionResult {
   success?: boolean;
 }
 
-
 type CreatePaymentIntentResult =
   | { success: true; clientSecret: string; orderTotal: number }
   | { error: string; status?: number };
 
 export async function createPaymentIntentAction(): Promise<CreatePaymentIntentResult> {
-   const session = await auth.api.getSession({
-      headers: await headers() // you need to pass the headers object.
-  })
-  
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
   if (!session?.user?.id) {
     return { error: "User not authenticated", status: 401 };
   }
   const userId = session.user.id;
 
   try {
-    // 1. Retrieve the user's cart items from the database (server-side source of truth)
     const cart = await prisma.cart.findUnique({
       where: { userId },
       include: {
         items: {
           include: {
             product: {
-              select: { id: true, name: true, price: true, stock: true }, // Include stock
+              select: { id: true, name: true, price: true, stock: true },
             },
           },
         },
@@ -52,7 +50,6 @@ export async function createPaymentIntentAction(): Promise<CreatePaymentIntentRe
 
     const cartItems: CartItemWithProduct[] = cart.items;
 
-    // 2. Verify stock levels (important check before payment)
     for (const item of cartItems) {
       if (item.product.stock < item.quantity) {
         return {
@@ -62,7 +59,6 @@ export async function createPaymentIntentAction(): Promise<CreatePaymentIntentRe
       }
     }
 
-    // 3. Calculate the total amount *on the server* in the smallest currency unit (e.g., cents)
     const amountInCents = calculateOrderAmountInCents(
       cartItems.map((item) => ({
         price: item.product.price,
@@ -74,24 +70,14 @@ export async function createPaymentIntentAction(): Promise<CreatePaymentIntentRe
       return { error: "Invalid order amount", status: 400 };
     }
 
-    // Optional: Look for an existing Order with a matching PaymentIntent that hasn't been paid yet
-    // This prevents creating multiple PaymentIntents for the same checkout attempt if the user refreshes, etc.
-    // You'd need to add a 'stripePaymentIntentId' field to your Order model.
-    // Let's skip this optimization for simplicity now, but consider it for production.
-
-    // 4. Create a Payment Intent with Stripe
-    // We pass metadata which can be useful for linking the Stripe payment back to our order/user
-    // especially in webhook handlers.
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: "usd", // Or your desired currency
+      currency: "usd",
       metadata: {
         userId: userId,
-        // Add other relevant info like cartId if needed: cartId: cart.id
       },
-      // You might enable automatic_payment_methods in production for broader payment options
-      // automatic_payment_methods: { enabled: true },
-      payment_method_types: ["card"], // Start with card payments
+
+      payment_method_types: ["card"],
     });
 
     if (!paymentIntent.client_secret) {
@@ -102,133 +88,169 @@ export async function createPaymentIntentAction(): Promise<CreatePaymentIntentRe
       await prisma.order.create({
         data: {
           userId: userId,
-          totalAmount: amountInCents / 100, // Store standard amount
-          status: OrderStatus.PENDING, // Use enum
-          stripePaymentIntentId: paymentIntent.id, // Link to PaymentIntent
-          // Create OrderItems based on CartItems
+          totalAmount: amountInCents / 100,
+          status: OrderStatus.PENDING,
+          stripePaymentIntentId: paymentIntent.id,
+
           items: {
             create: cartItems.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
-              price: item.product.price, // Store price at time of order
+              price: item.product.price,
             })),
           },
-          // Store shipping address if collected earlier
-          // shippingAddress: JSON.stringify(shippingDetails),
         },
       });
       console.log(
         `Created PENDING order for PaymentIntent: ${paymentIntent.id}`
       );
     } catch (orderError: any) {
-      // If order creation fails AFTER payment intent is created, it's tricky.
-      // Ideally, log this severe error. Maybe try to refund/cancel the PaymentIntent?
-      // This highlights why database transactions covering multiple operations are useful.
       console.error(
         `❌ CRITICAL: Failed to create PENDING order after PI creation (${paymentIntent.id}):`,
         orderError
       );
-      // Don't return client_secret if order failed to save, as we can't fulfill it later.
+
       return {
         error: "Failed to save order details. Please try again later.",
         status: 500,
       };
     }
 
-    // Optional: Create a preliminary Order record in your DB with 'PENDING' status
-    // and associate the paymentIntent.id. This helps track attempts.
-    // await prisma.order.create({ data: { userId, totalAmount: amountInCents / 100, status: 'PENDING', stripePaymentIntentId: paymentIntent.id, items: { create: ... } }});
+    try {
+      await prisma.product.update({
+        where: { id: cartItems[0].productId },
+        data: {
+          stock: {
+            decrement: cartItems[0].quantity,
+          },
+        },
+      });
+    } catch (error) {
+      console.error(
+        `Error updating stock for product ${cartItems[0].productId}:`,
+        error
+      );
+      return {
+        error: "Failed to update product stock. Please try again later.",
+        status: 500,
+      };
+    }
 
-    // 5. Return the client_secret and the calculated total
     return {
       success: true,
       clientSecret: paymentIntent.client_secret,
-      orderTotal: amountInCents / 100, // Return total in standard currency unit for display
+      orderTotal: amountInCents / 100,
     };
   } catch (error: any) {
     console.error("Error creating Payment Intent:", error);
-    // Provide a more specific error message if possible
+
     const errorMessage =
       error instanceof Error ? error.message : "Could not initiate checkout";
     return { error: errorMessage, status: 500 };
   }
 }
 
-
-
 export async function updateOrderStatusAction(
   orderId: string,
   newStatus: OrderStatus
 ): Promise<OrderActionResult> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-  // 1. Check Authentication & Authorization (Admin Only)
-   const session = await auth.api.getSession({
-    headers: await headers() // you need to pass the headers object.
-})
+  console.log(
+    "SessHGHJGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGHYTYTUYYYYYYYYYYion:",
+    session
+  );
 
-  if (!session?.user || session.user.role !== UserRole.ADMIN) {
-      return { error: "Unauthorized: Admin access required." };
+  const userRole = await prisma.user.findUnique({
+    where: { id: session?.user?.id },
+    select: { role: true },
+  });
+
+  if (!session?.user || !session.user.id || userRole?.role !== UserRole.ADMIN) {
+    return { error: "Unauthorized: Admin access required." };
   }
 
-  // 2. Validate Inputs (Basic)
   if (!orderId) {
-      return { error: "Invalid Order ID." };
-  }
-  // Ensure the newStatus is a valid OrderStatus enum value
-  if (!Object.values(OrderStatus).includes(newStatus)) {
-       return { error: "Invalid status value provided."};
+    return { error: "Invalid Order ID." };
   }
 
+  if (!Object.values(OrderStatus).includes(newStatus)) {
+    return { error: "Invalid status value provided." };
+  }
 
   try {
-      // 3. Find the existing order to ensure it exists
-      const existingOrder = await prisma.order.findUnique({
-          where: { id: orderId },
-          // Include userId if needed for notifications
-          select: { id: true, status: true, userId: true }
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+
+      select: { id: true, status: true, userId: true },
+    });
+
+    if (!existingOrder) {
+      return { error: "Order not found." };
+    }
+
+    if (newStatus === "CANCELED") {
+      const orderItems = await prisma.orderItem.findMany({
+        where: { orderId: existingOrder.id },
+        select: { productId: true, quantity: true },
       });
 
-      if (!existingOrder) {
-          return { error: "Order not found." };
-      }
-
-      // 4. Optional: Prevent changing status back from terminal states (e.g., DELIVERED, CANCELED)
-      // if ([OrderStatus.DELIVERED, OrderStatus.CANCELED, OrderStatus.FAILED].includes(existingOrder.status)) {
-      //      if (existingOrder.status !== newStatus) { // Allow setting *to* the same terminal state? Maybe not needed.
-      //          return { error: `Cannot change status from a terminal state (${existingOrder.status}).` };
-      //      }
-      // }
-
-      // 5. Update the order status
-      await prisma.order.update({
-          where: { id: orderId },
+      for (const item of orderItems) {
+        await prisma.product.update({
+          where: { id: item.productId },
           data: {
-              status: newStatus,
-              // Optionally update updatedAt timestamp automatically (Prisma does this)
+            stock: {
+              increment: item.quantity,
+            },
           },
+        });
+      }
+    }
+
+    if (existingOrder.status === newStatus) {
+      return { error: "No status change needed." };
+    }
+
+    if (existingOrder.status === "CANCELED" && newStatus === "PENDING") {
+       const orderItems = await prisma.orderItem.findMany({
+        where: { orderId: existingOrder.id },
+        select: { productId: true, quantity: true },
       });
 
-      console.log(`Admin ${session.user.email} updated order ${orderId} status to ${newStatus}`);
+      for (const item of orderItems) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+    }
 
-      // --- Side Effects ---
-      // 6. TODO: Send status update notification email to the customer
-      // Only send for specific transitions (e.g., PAID -> SHIPPED, SHIPPED -> DELIVERED)
-      // if (newStatus === OrderStatus.SHIPPED || newStatus === OrderStatus.DELIVERED) {
-      //    await sendOrderStatusUpdateEmail(existingOrder.userId, orderId, newStatus);
-      // }
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: newStatus,
+      },
+    });
 
-
+    console.log(
+      `Admin ${session.user.email} updated order ${orderId} status to ${newStatus}`
+    );
   } catch (error: any) {
-      console.error(`Error updating status for order ${orderId}:`, error);
-      return { error: "Database error: Could not update order status." };
+    console.error(`Error updating status for order ${orderId}:`, error);
+    return { error: "Database error: Could not update order status." };
   }
 
-  // 7. Revalidate relevant paths
-  revalidatePath('/admin/orders'); // Admin list
-  revalidatePath(`/admin/orders/${orderId}`); // Admin detail
-  // Revalidate customer's order history as well
-  revalidatePath('/account/orders');
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+
+  revalidatePath("/account/orders");
   revalidatePath(`/account/orders/${orderId}`);
 
-  return { success: true }; // Indicate success
+  return { success: true };
 }

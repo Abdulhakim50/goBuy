@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"; // Assuming Shadcn 
 import Header from "@/components/layout/header"; // Create this component
 import Footer from "@/components/layout/footer"; // Create this component
 import { Toaster } from "@/components/ui/sonner"; // From Shadcn
+import { CartInitializer } from "@/components/CartInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <div className="flex flex-col min-h-screen">
+              <CartInitializer />
               <Header /> {/* Your site header */}
               <main className="flex-grow container mx-auto px-4 py-8">
                 {children}

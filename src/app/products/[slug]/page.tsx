@@ -82,16 +82,16 @@ export default async function ProductDetailPage({ params }: Props) {
           {/* Add to Cart Button */}
           {product.stock > 0 && (
             <div className="mt-4">
-              <AddToCartButton productId={product.id} />
+              <AddToCartButton product={product} />
             </div>
           )}
 
           {/* Category or Tags (if you add it to schema) */}
-          {product.category && (
+          {/* {product.category && (
             <div className="text-sm text-muted-foreground mt-2">
               Category: <span className="text-foreground font-medium">{product.category}</span>
             </div>
-          )}
+          )} */}
         </div>
       </div>
 

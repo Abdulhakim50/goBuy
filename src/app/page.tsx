@@ -18,7 +18,7 @@ export default async function HomePage() {
     const newArrivals = await prisma.product.findMany({
         orderBy: { createdAt: 'desc' },
         take: 4,
-        select: { id: true, name: true, slug: true, price: true, imagePath: true, stock: true },
+        select: { id: true, name: true, slug: true, price: true, imagePath: true, stock: true,description : true },
     });
 
     // --- Data with Unsplash Image URLs ---

@@ -28,8 +28,8 @@ export async function editProfile(
   const userId = session?.user?.id;
 
   const rawData = Object.fromEntries(formData.entries());
-  const name = rawData.name;
-  const email = rawData.email;
+  const name = typeof rawData.name === "string" ? rawData.name : "";
+  const email = typeof rawData.email === "string" ? rawData.email : "";
 
   try {
     const existingProduct = await prisma.user.findUnique({

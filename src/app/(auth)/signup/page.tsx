@@ -22,7 +22,7 @@ import { redirect } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 // Separate component for the submit button to use useFormStatus
-function SubmitButton({ pending } : { pending: boolean }) {
+function SubmitButton({ pending }: { pending: boolean }) {
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -35,31 +35,27 @@ export default function SignupPage() {
   // useFormState takes the action and initial state
   const [state, formAction, pending] = useActionState(signupAction, undefined); // Initial state is undefined
 
-   const { 
-        data: session, 
-        isPending, //loading state
-        error, //error object
-        refetch //refetch the session
-    } = authClient.useSession() 
-     
+  const {
+    data: session,
+    isPending, //loading state
+    error, //error object
+    refetch, //refetch the session
+  } = authClient.useSession();
 
-    
-   
-    
-      if (session) {
-        redirect('/')
-      }
+  if (session) {
+    redirect("/");
+  }
 
-  // console.log(state?.error?.map(e=>e.from))
-  // useEffect(() => {
-  //   if (state?.error) {
-  //     toast("Signup Failed", {
-  //       description: state.error?.,
-  //     });
-  //   }
-  //   // You could potentially show a success toast here too, but redirect is usually sufficient
-  //   // if (state?.success) { ... }
-  // }, [state, toast]);
+
+  useEffect(() => {
+    if (state?.error) {
+      toast("Signup Failed", {
+        description:Array.isArray(state.error) &&  state.error?.map((e : any)=> e.msg),
+      });
+    }
+    // You could potentially show a success toast here too, but redirect is usually sufficient
+    // if (state?.success) { ... }
+  }, [state, toast]);
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -90,7 +86,10 @@ export default function SignupPage() {
                 required
               />
               <p className=" text-red-600">
-                {state?.error?.map((e) => (e.from === "name" ? e.msg : null))}
+                {Array.isArray(state?.error) &&
+                  state.error.map((e: any, idx: number) =>
+                    e.from === "name" ? <div key={idx}>{e.msg}</div> : null
+                  )}{" "}
               </p>
             </div>
             <div className="grid gap-2">
@@ -104,7 +103,10 @@ export default function SignupPage() {
                 required
               />
               <p className=" text-red-600">
-                { state?.error?.map((e) => (e.from ? e.from === "email" ? e.msg : null : null))}
+                {Array.isArray(state?.error) &&
+                  state.error.map((e: any, idx: number) =>
+                    e.from === "email" ? <div key={idx}>{e.msg}</div> : null
+                  )}{" "}
               </p>
             </div>
             <div className="grid gap-2">

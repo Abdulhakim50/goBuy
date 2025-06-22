@@ -6,7 +6,11 @@ import { User } from "@prisma/client";
 
 const page = async () => {
   const profile  = await fetchProfileForEdit();
-  console.log(profile)
+  
+  
+  if (!profile) {
+    return <div>No profile found.</div>;
+  }
 
   return (
     <div>
