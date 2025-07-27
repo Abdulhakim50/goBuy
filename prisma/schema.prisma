@@ -137,7 +137,8 @@ model Order {
   totalAmount           Float // Use Int for cents!
   status                OrderStatus @default(PENDING) // Use the enum
   shippingAddress       String?     @db.Text
-  stripePaymentIntentId String?     @unique // Make sure this is unique
+  stripePaymentIntentId String?     @unique // Make sure this is 
+  tx_ref      String?     @unique
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 }

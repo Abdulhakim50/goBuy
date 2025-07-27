@@ -1,10 +1,10 @@
 "use server";
 
-import { calculateOrderAmountInCents } from "@/app/lib/stripe";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
-import { Product, CartItem,OrderStatus } from "@prisma/client";
 import prisma from "@/app/lib/prisma";
+import { OrderStatus, Prisma } from "@prisma/client";
+import { calculateOrderAmountInCents } from "@/app/lib/stripe"; // Assuming this works for you
 
 type ChapaInitResponse = {
   message: string;
@@ -14,151 +14,62 @@ type ChapaInitResponse = {
   };
 };
 
-// export async function chapaPaymentInitaization(): Promise<ChapaInitResponse> {
-//   const tax_ref = `txn_${Date.now()}`; // Unique transaction reference
+type CreateOrderResult =
+  | { success: true; checkoutUrl: string }
+  | { error: string };
 
-//   const res = await fetch("https://api.chapa.co/v1/transaction/initialize", {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-//     },
-//     body: JSON.stringify({
-//       amount: 1000,
-//       currency: "ETB",
-//       email: "la@gmail.com",
-//       first_name: "John",
-//       last_name: "Doe",
-//       phone_number: "0912345678",
-//       tx_ref: tax_ref,
-//       callback_url: "http://localhost:3000/confirm",
-//       return_url: `http://localhost:3000/orderConfirmation/${tax_ref}`,
-//       metadata: {
-//         custom_field: "value",
-//       },
-//     }),
-//   });
+export async function chapaPaymentInitaization(): Promise<CreateOrderResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userId = session?.user?.id;
 
-//   const data: ChapaInitResponse = await res.json();
+  if (!userId) {
+    return { error: "User not authenticated." };
+  }
 
-//   if (!res.ok || data.status !== "success") {
-//     throw new Error(`Chapa Init Failed: ${data.message}`);
-//   }
-
-//   return data;
-// }
-
-type CartItemWithProduct = CartItem & {
-  product: Pick<Product, "id" | "name" | "price" | "stock">;
-};
-
-interface OrderActionResult {
-  error?: string | null;
-  success?: boolean;
-}
-
-type CreatePaymentIntentResult =
-  | { success: true; data : ChapaInitResponse; orderTotal: number }
-  | { error: string; status?: number };
-
-export async function chapaPaymentInitaization(): Promise<CreatePaymentIntentResult> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
+  const cart = await prisma.cart.findUnique({
+    where: { userId },
+    include: {
+      items: {
+        include: { product: true },
+      },
+    },
   });
 
-  if (!session?.user?.id) {
-    return { error: "User not authenticated", status: 401 };
+  if (!cart || cart.items.length === 0) {
+    return { error: "Your cart is empty." };
   }
-  const userId = session.user.id;
-  const tax_ref = `txn_${Date.now()}`;
 
+  const tx_ref = `txn-${userId}-${Date.now()}`;
+  const amountInCents = calculateOrderAmountInCents(
+    cart.items.map((item) => ({
+      price: item.product.price,
+      quantity: item.quantity,
+    }))
+  );
+  const amountInBirr = amountInCents / 100;
+
+  // --- CRITICAL: Use a Database Transaction ---
   try {
-    const cart = await prisma.cart.findUnique({
-      where: { userId },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: { id: true, name: true, price: true, stock: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!cart || cart.items.length === 0) {
-      return { error: "Cart is empty", status: 400 };
-    }
-
-    const cartItems: CartItemWithProduct[] = cart.items;
-
-    for (const item of cartItems) {
-      if (item.product.stock < item.quantity) {
-        return {
-          error: `Insufficient stock for ${item.product.name}. Only ${item.product.stock} left.`,
-          status: 400,
-        };
+    await prisma.$transaction(async (tx) => {
+      // 1. Check for stock one last time inside the transaction
+      for (const item of cart.items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+        });
+        if (!product || product.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.product.name}.`);
+        }
       }
-    }
 
-    const amountInCents = calculateOrderAmountInCents(
-      cartItems.map((item) => ({
-        price: item.product.price,
-        quantity: item.quantity,
-      }))
-    );
-
-    if (amountInCents <= 0) {
-      return { error: "Invalid order amount", status: 400 };
-    }
-
-    // const paymentIntent = await stripe.paymentIntents.create({
-    //   amount: amountInCents,
-    //   currency: "usd",
-    //   metadata: {
-    //     userId: userId,
-    //   },
-
-    //   payment_method_types: ["card"],
-    // });
-
-    const res = await fetch("https://api.chapa.co/v1/transaction/initialize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
-      },
-      body: JSON.stringify({
-        amount: amountInCents / 100, // Chapa expects amount in the smallest currency unit
-        currency: "ETB",
-        email: session?.user.email ,
-        first_name: session.user.name,
-        tx_ref: tax_ref,
-        callback_url: "http://localhost:3000/confirm",
-        return_url: `http://localhost:3000/orderConfirmation/${tax_ref}`,
-    
-      }),
-    });
-
-    const data: ChapaInitResponse = await res.json();
-
-    if (!res.ok || data.status !== "success") {
-      throw new Error(`Chapa Init Failed: ${data.message}`);
-    }
-
-    // if (!paymentIntent.client_secret) {
-    //   throw new Error("Failed to create Payment Intent client secret.");
-    // }
-
-    try {
-      await prisma.order.create({
+      // 2. Create the Order with a 'PENDING' status
+      await tx.order.create({
         data: {
           userId: userId,
-          totalAmount: amountInCents / 100,
+          totalAmount: amountInBirr,
           status: OrderStatus.PENDING,
-
+          tx_ref: tx_ref, // Link the order to the Chapa transaction
           items: {
-            create: cartItems.map((item) => ({
+            create: cart.items.map((item) => ({
               productId: item.productId,
               quantity: item.quantity,
               price: item.product.price,
@@ -166,49 +77,55 @@ export async function chapaPaymentInitaization(): Promise<CreatePaymentIntentRes
           },
         },
       });
-    
-    } catch (orderError: any) {
-      console.error(
-        `❌ CRITICAL: Failed to create PENDING order after PI creation):`,
-        orderError
-      );
 
-      return {
-        error: "Failed to save order details. Please try again later.",
-        status: 500,
-      };
-    }
-
-    try {
-      await prisma.product.update({
-        where: { id: cartItems[0].productId },
-        data: {
-          stock: {
-            decrement: cartItems[0].quantity,
-          },
-        },
-      });
-    } catch (error) {
-      console.error(
-        `Error updating stock for product ${cartItems[0].productId}:`,
-        error
-      );
-      return {
-        error: "Failed to update product stock. Please try again later.",
-        status: 500,
-      };
-    }
-
-    return {
-      success: true,
-      data: data,
-      orderTotal: amountInCents / 100,
-    };
+      // 3. Decrement stock for EACH item
+    });
   } catch (error: any) {
-    console.error("Error creating Payment Intent:", error);
+    console.error("Transaction failed:", error);
+    return {
+      error: error.message || "Could not create your order. Please try again.",
+    };
+  }
+  // --- End of Transaction ---
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Could not initiate checkout";
-    return { error: errorMessage, status: 500 };
+  // 5. If the transaction was successful, THEN initialize payment with Chapa
+  try {
+    const res = await fetch("https://api.chapa.co/v1/transaction/initialize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.CHAPA_SECRET_KEY}`,
+      },
+      body: JSON.stringify({
+        amount: amountInBirr,
+        currency: "ETB",
+        email: session.user.email,
+        first_name: session.user.name,
+        tx_ref: tx_ref,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/chapa/webhook`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/orderConfirmation/confirm?tx_ref=${tx_ref}`,
+      }),
+    });
+
+    const chapaResponse: ChapaInitResponse = await res.json();
+
+    if (
+      chapaResponse.status !== "success" ||
+      !chapaResponse.data.checkout_url
+    ) {
+      // TODO: Here you should handle payment init failure by canceling the order
+      // and restoring stock. For now, we'll just return an error.
+      console.error("Chapa initialization failed:", chapaResponse);
+      return { error: "Could not connect to the payment provider." };
+    }
+    
+     
+    
+  
+
+    return { success: true, checkoutUrl: chapaResponse.data.checkout_url };
+  } catch (error) {
+    console.error("Error initializing Chapa payment:", error);
+    return { error: "An error occurred while setting up your payment." };
   }
 }

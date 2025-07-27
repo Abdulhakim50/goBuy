@@ -100,13 +100,15 @@ function StatusDisplay({ status, message, showRetry = false, paymentIntentId }: 
 
 
 // The Page component itself uses Suspense for client-side parameter reading
-export default function OrderConfirmationPage({
+export default async function OrderConfirmationPage({
     searchParams,
 }: {
     searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-    const paymentIntentId = searchParams?.payment_intent as string;
-    const clientSecret = searchParams?.payment_intent_client_secret as string;
+
+     const searchP = await searchParams
+    const paymentIntentId = searchP?.payment_intent as string;
+    const clientSecret = searchP?.payment_intent_client_secret as string;
 
     // Use Suspense to handle the async component and client-side param reading
     // Note: For server-side parameter reading and data fetching based on them,

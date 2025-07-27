@@ -131,39 +131,31 @@ export async function credentialsSignInAction(
   prevState: ActionResult | undefined,
   formData: FormData
 ): Promise<ActionResult> {
-
-
- const validatedFields = SigninSchema.safeParse(
+  const validatedFields = SigninSchema.safeParse(
     Object.fromEntries(formData.entries())
   );
 
+  // 1. Handle Zod validation errors first
   if (!validatedFields.success) {
-    // Aggregate Zod errors into a single message (or handle field-specific errors)
-    const errorMessage = validatedFields.error.errors.map((e) => {
-      return {from: e.path[0], msg: e.message };
-    });
-
-    console.log(errorMessage);
-
-    return { error: errorMessage };
+    const fieldErrors = validatedFields.error.errors.map((e) => ({
+      from: e.path[0], // The field name (e.g., 'email', 'password')
+      msg: e.message,
+    }));
+    // Return the errors to be displayed on the form by useFormState
+    return { error: fieldErrors };
   }
 
-  const {  email, password } = validatedFields.data;
-  
+  const { email, password } = validatedFields.data;
 
   try {
-    // signIn throws an error if authentication fails
-      await auth.api.signInEmail({
+    // 2. Attempt to sign in. This will throw an APIError on failure.
+    await auth.api.signInEmail({
       headers: await headers(),
       body: {
         email,
         password,
       },
     });
-   
-    redirect("/"); 
-    return { success: true }; 
-  
   } catch (err) {
     if (err instanceof APIError) {
       const errCode = err.body ? (err.body.code as ErrorCode) : "UNKNOWN";
@@ -176,7 +168,14 @@ export async function credentialsSignInAction(
       }
     }
 
-    return { error: "Internal Server Error" };
-  };
-    
+    // 4. Handle unexpected, non-API errors
+    console.error("Internal Server Error in SignIn:", err);
+    return { error: "An unexpected error occurred. Please try again later." };
+  }
+
+  // 5. On successful sign-in, redirect the user to the home page.
+  // This is the ONLY statement that runs if the try block succeeds.
+  revalidatePath('/')
+  redirect("/");
+   
 }

@@ -46,8 +46,9 @@ export default function UserNav() {
       </div>
     );
   }
+  else{
 
-  // Display User Dropdown if authenticated
+ // Display User Dropdown if authenticated
   const user = session.user;
   const userInitials =
     user.name
@@ -83,7 +84,7 @@ export default function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/account">
+            <Link href="/account/profile">
               {" "}
               {/* Create this page later */}
               <User className="mr-2 h-4 w-4" />
@@ -119,4 +120,9 @@ export default function UserNav() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+
+  }
+
+    
+  
 }

@@ -16,19 +16,25 @@ export async function POST(req: NextRequest) {
     if (!webhookSecret) {
         return NextResponse.json({ error: 'Server configuration error: Missing webhook secret.' }, { status: 500 });
     }
+    
 
-    const body = await req.text(); // Get raw body as text
-    const signature = headers().get('stripe-signature') as string; // Get signature from headers
-
+    const buf = await req.arrayBuffer();
+    // const body = await req.text(); // Get raw body as textbody
+    // console.log('params for stripe payment',body)
+    // const signature = headers().get('stripe-signature') as string; // Get signature from headers
+    const signature = req.headers.get('stripe-signature') as string;
+    console.log('stripe signature',signature)
+    
     let event: Stripe.Event;
 
     // --- Verify the webhook signature ---
     try {
         event = stripe.webhooks.constructEvent(
-            body,
+            Buffer.from(buf),
             signature,
             webhookSecret
         );
+        console.log('eeeevvvveeennntt',event)
     } catch (err: any) {
         console.error(`❌ Error verifying webhook signature: ${err.message}`);
         return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });

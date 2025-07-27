@@ -30,7 +30,9 @@ interface ShippingDetails {
   country: string;
 }
 
-export default function CheckoutFormWrapper({ method }: { method: string }) {
+ type SearchParams = string | string[] | undefined 
+
+export default function CheckoutFormWrapper({ method }:{ method :SearchParams}) {
   const [isPendingAction, startTransition] = useTransition();
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
   const [shippingDetails, setShippingDetails] = useState<ShippingDetails>({
@@ -73,7 +75,7 @@ export default function CheckoutFormWrapper({ method }: { method: string }) {
         } else if (result.success ) {
           console.log("Chapa result:", result);
           // Assuming result.data contains the checkout_url
-          const checkoutUrl = result.data.data.checkout_url;
+          const checkoutUrl = result.checkoutUrl;
           if (checkoutUrl) {
             // Redirect to Chapa checkout
             window.location.href = checkoutUrl;

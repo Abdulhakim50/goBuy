@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom"; // React experimental hooks
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ function SubmitButton({ pending }: { pending: boolean }) {
 export default function SignupPage() {
   // useFormState takes the action and initial state
   const [state, formAction, pending] = useActionState(signupAction, undefined); // Initial state is undefined
+  const router = useRouter();
 
   const {
     data: session,
